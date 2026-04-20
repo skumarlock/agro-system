@@ -1,3 +1,5 @@
+from decimal import Decimal
+
 from django.contrib.auth.models import AbstractUser
 from django.db import models
 from django.utils import timezone
@@ -149,6 +151,11 @@ class Operation(TimeStampedModel):
         blank=True,
         related_name="operations",
     )
+
+    def get_total_cost(self) -> Decimal:
+        from core.services.operations import calculate_operation_cost
+
+        return calculate_operation_cost(self)
 
     def __str__(self):
         return f"{self.get_type_display()} - {self.date}"
