@@ -1,0 +1,92 @@
+{% extends "base.html" %}
+{% load formatters %}
+
+{% block title %}Field Crop Details | Agro System{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h1 class="h3 mb-1">Field Crop Details</h1>
+        <p class="text-muted mb-0">{{ report.field.name }} / {{ report.crop.name }}</p>
+    </div>
+    <a href="{% url 'field-crops' %}" class="btn btn-outline-secondary">Back to list</a>
+</div>
+
+<div class="row g-4 mb-4">
+    <div class="col-lg-8">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-body">
+                <dl class="row mb-0">
+                    <dt class="col-sm-4">Field</dt>
+                    <dd class="col-sm-8">{{ report.field.name }}</dd>
+
+                    <dt class="col-sm-4">Crop</dt>
+                    <dd class="col-sm-8">{{ report.crop.name }}</dd>
+
+                    <dt class="col-sm-4">Season</dt>
+                    <dd class="col-sm-8">
+                        <a href="{% url 'season-report' report.season.id %}" class="link-success text-decoration-none">
+                            {{ report.season.name }} {{ report.season.year }}
+                        </a>
+                    </dd>
+
+                    <dt class="col-sm-4">Status</dt>
+                    <dd class="col-sm-8">{{ report.status|title }}</dd>
+                </dl>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-4">
+        <div class="card border-0 shadow-sm mb-4">
+            <div class="card-body">
+                <p class="text-muted text-uppercase small mb-2">Operations</p>
+                <h2 class="h3 mb-0">{{ report.operations_count }}</h2>
+            </div>
+        </div>
+        <div class="card border-0 shadow-sm mb-4">
+            <div class="card-body">
+                <p class="text-muted text-uppercase small mb-2">Total Cost</p>
+                <h2 class="h3 mb-0">{{ report.total_cost|money_short }} </h2>
+                <small class="text-muted">({{ report.total_cost|money }})</small>
+            </div>
+        </div>
+        <div class="card border-0 shadow-sm">
+            <div class="card-body">
+                <p class="text-muted text-uppercase small mb-2">Cost Per Hectare</p>
+                <h2 class="h3 mb-0">{{ report.cost_per_hectare|money_short }} сум/га</h2>
+                <small class="text-muted">({{ report.cost_per_hectare|money }})</small>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card border-0 shadow-sm">
+    <div class="card-header bg-white">
+        <h2 class="h5 mb-0">Resources</h2>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Name</th>
+                        <th>Quantity</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for name, quantity in report.resources.items %}
+                    <tr>
+                        <td>{{ name|title }}</td>
+                        <td>{{ quantity }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="2" class="text-center text-muted py-4">No resources found.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

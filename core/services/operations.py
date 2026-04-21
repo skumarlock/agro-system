@@ -1,6 +1,6 @@
 from decimal import Decimal
 from django.db.models import F, Sum, DecimalField, ExpressionWrapper
-
+from django.db.models.functions import Coalesce
 from core.models import Operation
 
 
@@ -24,10 +24,13 @@ def calculate_operation_cost(operation: Operation) -> Decimal:
     qs = operation.operation_resources.all()
 
     result = qs.annotate(
-        total=ExpressionWrapper(
-            F("quantity") * F("resource__cost_per_unit"),
-            output_field=DecimalField(max_digits=12, decimal_places=2)
-        )
+    total=ExpressionWrapper(
+        F("quantity") * Coalesce(
+            F("price_per_unit"),
+            F("resource__cost_per_unit")  # fallback
+        ),
+        output_field=DecimalField(max_digits=12, decimal_places=2)
+    )
     ).aggregate(total_cost=Sum("total"))
 
     return result["total_cost"] or ZERO_DECIMAL

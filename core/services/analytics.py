@@ -1,5 +1,6 @@
 from collections import defaultdict
 from decimal import Decimal
+from django.db.models.functions import Coalesce
 
 from django.db.models import DecimalField, ExpressionWrapper, F, Sum
 
@@ -9,7 +10,10 @@ from core.models import FieldCrop, Operation, OperationResource, Season, User
 ZERO_DECIMAL = Decimal("0")
 
 COST_EXPR = ExpressionWrapper(
-    F("quantity") * F("resource__cost_per_unit"),
+    F("quantity") * Coalesce(
+        F("price_per_unit"),
+        F("resource__cost_per_unit")
+    ),
     output_field=DecimalField(max_digits=12, decimal_places=2),
 )
 
@@ -43,19 +47,32 @@ def get_user_operations_count(user: User) -> int:
     return Operation.objects.filter(field_crop__field__owner=user).count()
 
 
-def get_user_resources_summary(user: User) -> dict[str, Decimal]:
-    queryset = OperationResource.objects.filter(
+def get_user_resources_summary(user: User):
+    qs = OperationResource.objects.filter(
         operation__field_crop__field__owner=user
-    ).values(
-        "resource__type"
-    ).annotate(
-        total_quantity=Sum("quantity")
     )
 
-    return {
-        item["resource__type"]: item["total_quantity"] or ZERO_DECIMAL
+    queryset = qs.values("resource__name").annotate(
+        total_quantity=Sum("quantity"),
+        total_cost=Sum(
+            ExpressionWrapper(
+                F("quantity") * Coalesce(
+                    F("price_per_unit"),
+                    F("resource__cost_per_unit")
+                ),
+                output_field=DecimalField(max_digits=14, decimal_places=2)
+            )
+        )
+    )
+
+    return [
+        {
+            "name": item["resource__name"],
+            "quantity": item["total_quantity"] or ZERO_DECIMAL,
+            "cost": item["total_cost"] or ZERO_DECIMAL,
+        }
         for item in queryset
-    }
+    ]
 
 
 def get_season_fields_count(season: Season, user: User) -> int:
@@ -72,17 +89,22 @@ def get_season_operations_count(season: Season, user: User) -> int:
     ).count()
 
 
-def get_season_resources_summary(season: Season, user: User) -> dict[str, Decimal]:
+def get_season_resources_summary(season: Season, user: User) -> list[dict]:
     queryset = OperationResource.objects.filter(
         operation__field_crop__season=season,
         operation__field_crop__field__owner=user
     ).values(
         "resource__type"
     ).annotate(
-        total_quantity=Sum("quantity")
+        total_quantity=Sum("quantity"),
+        total_cost=Sum(COST_EXPR),
     )
 
-    return {
-        item["resource__type"]: item["total_quantity"] or ZERO_DECIMAL
+    return [
+        {
+            "name": item["resource__type"],
+            "quantity": item["total_quantity"] or ZERO_DECIMAL,
+            "cost": item["total_cost"] or ZERO_DECIMAL,
+        }
         for item in queryset
-    }
+    ]

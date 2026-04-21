@@ -50,3 +50,12 @@ def get_season_report(season: Season, user: User) -> dict:
         "operations_count": get_season_operations_count(season, user),
         "resources": get_season_resources_summary(season, user),
     }
+
+def get_field_crops_reports(user):
+    field_crops = (
+        FieldCrop.objects.filter(field__owner=user)
+        .select_related("field", "crop", "season")
+        .order_by("id")
+    )
+
+    return [get_field_crop_report(fc) for fc in field_crops]

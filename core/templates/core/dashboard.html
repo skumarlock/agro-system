@@ -1,0 +1,173 @@
+{% extends "base.html" %}
+{% load formatters %}
+
+{% block title %}Dashboard | Agro System{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h1 class="h3 mb-1">Dashboard</h1>
+        <p class="text-muted mb-0">Reporting overview for your fields and operations.</p>
+    </div>
+    <div class="mb-3">
+        <a href="?currency=uzs&{{ query_params }}"
+            class="btn btn-sm {% if currency == 'uzs' %}btn-dark{% else %}btn-outline-dark{% endif %}">
+            UZS
+        </a>
+
+        <a href="?currency=usd&{{ query_params }}"
+            class="btn btn-sm {% if currency == 'usd' %}btn-dark{% else %}btn-outline-dark{% endif %}">
+            USD
+        </a>
+    </div>
+</div>
+
+<div class="row g-4 mb-4">
+    <div class="col-md-4">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-body">
+                <p class="text-muted text-uppercase small mb-2">Total Cost</p>
+                <h2 class="h3 mb-0">{% if currency == "usd" %}
+                    {{ dashboard.total_cost|money_usd }}
+                    {% else %}
+                    {{ dashboard.total_cost|money }}
+                    {% endif %}</h2>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-body">
+                <p class="text-muted text-uppercase small mb-2">Fields Count</p>
+                <h2 class="h3 mb-0">{{ dashboard.fields_count }}</h2>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-body">
+                <p class="text-muted text-uppercase small mb-2">Operations Count</p>
+                <h2 class="h3 mb-0">{{ dashboard.operations_count }}</h2>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card border-0 shadow-sm">
+    <div class="card-header bg-white d-flex justify-content-between align-items-center">
+        <h2 class="h5 mb-0">Resources</h2>
+
+        <div class="d-flex align-items-center gap-3">
+            <small class="text-muted">
+                USD: {{ usd_rate|money }}
+            </small>
+
+            <a href="{% url 'update-rate' %}" class="btn btn-sm btn-outline-secondary">
+                🔄 Update rate
+            </a>
+        </div>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0" style="table-layout: fixed;">
+                <thead class="table-light" style="position: sticky; top: 0; z-index: 2; background: white;">
+                    <tr>
+                        <th style="width: 40%;">
+                            <a href="?sort=name&order={{ next_order }}&currency={{ currency }}"
+                                class="text-decoration-none text-dark d-flex align-items-center gap-1">
+                                Name
+                                {% if sort == "name" %}
+                                <span class="fw-semibold">
+                                    {% if order == "asc" %}
+                                    <!-- arrow up -->
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor"
+                                        class="bi bi-chevron-up text-muted" viewBox="0 0 16 16">
+                                        <path fill-rule="evenodd"
+                                            d="M8 12a.5.5 0 0 1-.5-.5V4.707L5.354 6.854a.5.5 0 1 1-.708-.708l3-3a.5.5 0 0 1 .708 0l3 3a.5.5 0 0 1-.708.708L8.5 4.707V11.5A.5.5 0 0 1 8 12z" />
+                                    </svg>
+                                    {% else %}
+                                    <!-- arrow down -->
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor"
+                                        class="bi bi-chevron-down text-muted" viewBox="0 0 16 16">
+                                        <path fill-rule="evenodd"
+                                            d="M8 4a.5.5 0 0 1 .5.5v6.793l2.146-2.147a.5.5 0 0 1 .708.708l-3 3a.5.5 0 0 1-.708 0l-3-3a.5.5 0 0 1 .708-.708L7.5 11.293V4.5A.5.5 0 0 1 8 4z" />
+                                    </svg>
+                                    {% endif %}
+                                </span>
+                                {% endif %}
+                            </a>
+                        </th>
+
+                        <th class="text-end" style="width: 25%;">
+                            <a href="?sort=quantity&order={{ next_order }}&currency={{ currency }}"
+                                class="text-decoration-none text-dark d-flex justify-content-center align-items-center gap-1">
+                                Quantity
+                                {% if sort == "quantity" %}
+                                <span class="fw-semibold">
+                                    {% if order == "asc" %}
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor"
+                                        class="bi bi-chevron-up text-muted" viewBox="0 0 16 16">
+                                        <path fill-rule="evenodd"
+                                            d="M8 12a.5.5 0 0 1-.5-.5V4.707L5.354 6.854a.5.5 0 1 1-.708-.708l3-3a.5.5 0 0 1 .708 0l3 3a.5.5 0 0 1-.708.708L8.5 4.707V11.5A.5.5 0 0 1 8 12z" />
+                                    </svg>
+                                    {% else %}
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor"
+                                        class="bi bi-chevron-down text-muted" viewBox="0 0 16 16">
+                                        <path fill-rule="evenodd"
+                                            d="M8 4a.5.5 0 0 1 .5.5v6.793l2.146-2.147a.5.5 0 0 1 .708.708l-3 3a.5.5 0 0 1-.708 0l-3-3a.5.5 0 0 1 .708-.708L7.5 11.293V4.5A.5.5 0 0 1 8 4z" />
+                                    </svg>
+                                    {% endif %}
+                                </span>
+                                {% endif %}
+                            </a>
+                        </th>
+
+                        <th class="text-end" style="width: 35%;">
+                            <a href="?sort=cost&order={{ next_order }}&currency={{ currency }}"
+                                class="text-decoration-none text-dark d-flex justify-content-center align-items-center gap-1">
+                                Cost
+                                {% if sort == "cost" %}
+                                <span class="fw-semibold">
+                                    {% if order == "asc" %}
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor"
+                                        class="bi bi-chevron-up text-muted" viewBox="0 0 16 16">
+                                        <path fill-rule="evenodd"
+                                            d="M8 12a.5.5 0 0 1-.5-.5V4.707L5.354 6.854a.5.5 0 1 1-.708-.708l3-3a.5.5 0 0 1 .708 0l3 3a.5.5 0 0 1-.708.708L8.5 4.707V11.5A.5.5 0 0 1 8 12z" />
+                                    </svg>
+                                    {% else %}
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor"
+                                        class="bi bi-chevron-down text-muted" viewBox="0 0 16 16">
+                                        <path fill-rule="evenodd"
+                                            d="M8 4a.5.5 0 0 1 .5.5v6.793l2.146-2.147a.5.5 0 0 1 .708.708l-3 3a.5.5 0 0 1-.708 0l-3-3a.5.5 0 0 1 .708-.708L7.5 11.293V4.5A.5.5 0 0 1 8 4z" />
+                                    </svg>
+                                    {% endif %}
+                                </span>
+                                {% endif %}
+                            </a>
+                        </th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for resource in dashboard.resources %}
+                    <tr class="{% if resource.is_top %}table-warning{% endif %}">
+                        <td>{{ resource.name|title }}</td>
+                        <td class="text-center">{{ resource.quantity }}</td>
+                        <td class="text-center" style="min-width: 150px; white-space: nowrap;">
+                            {% if currency == "usd" %}
+                            {{ resource.cost|money_usd }}
+                            {% else %}
+                            {{ resource.cost|money }}
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="3" class="text-center text-muted py-4">No resources found.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

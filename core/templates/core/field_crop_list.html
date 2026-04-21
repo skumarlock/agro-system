@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+
+{% block title %}Field Crops | Agro System{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h1 class="h3 mb-1">Field Crops</h1>
+        <p class="text-muted mb-0">List of field crops available for the current user.</p>
+    </div>
+</div>
+
+<div class="card border-0 shadow-sm">
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Field Name</th>
+                        <th>Crop Name</th>
+                        <th>Season</th>
+                        <th>Status</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in field_crops %}
+                    <tr>
+                        <td>{{ item.field.name }}</td>
+                        <td>{{ item.crop.name }}</td>
+                        <td>{{ item.season.name }} {{ item.season.year }}</td>
+                        <td>
+                            <span
+                                class="badge text-bg-success-subtle border border-success-subtle text-success-emphasis">
+                                {{ item.status|title }}
+                            </span>
+                        </td>
+                        <td class="text-end">
+                            <a href="{% url 'field-crop-detail' item.field_crop_id %}"
+                                class="btn btn-sm btn-outline-success">Details</a>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="5" class="text-center text-muted py-4">No field crops found.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

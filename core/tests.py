@@ -2,6 +2,8 @@ from datetime import date
 from decimal import Decimal
 
 from django.test import TestCase
+from django.urls import reverse
+from rest_framework.test import APIClient
 
 from core.models import Crop, Field, FieldCrop, Operation, OperationResource, Resource, Season, User
 from core.services.analytics import calculate_season_total_cost, calculate_user_total_cost
@@ -315,6 +317,7 @@ class BusinessLogicServicesTests(TestCase):
             operation=operation,
             resource=resource,
             quantity=Decimal("1.333"),
+            price_per_unit=resource.cost_per_unit,
         )
 
         result = calculate_operation_cost(operation)
@@ -384,3 +387,140 @@ class BusinessLogicServicesTests(TestCase):
                 },
             },
         )
+
+
+class ReportingAPITests(BusinessLogicServicesTests):
+    def setUp(self):
+        super().setUp()
+        self.client = APIClient()
+        self.client.force_authenticate(user=self.user)
+
+    def test_dashboard_endpoint_returns_service_data(self):
+        response = self.client.get(reverse("api-dashboard"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response.json(),
+            {
+                "total_cost": 41.5,
+                "fields_count": 2,
+                "operations_count": 4,
+                "resources": {
+                    "water": 6.5,
+                    "fertilizer": 2.0,
+                    "seed": 2.0,
+                },
+            },
+        )
+
+    def test_field_crops_endpoint_returns_reports_for_authenticated_user(self):
+        response = self.client.get(reverse("api-field-crops"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response.json(),
+            [
+                {
+                    "field_crop_id": self.spring_field_crop.id,
+                    "field": {
+                        "id": self.spring_field_crop.field.id,
+                        "name": self.spring_field_crop.field.name,
+                    },
+                    "crop": {
+                        "id": self.spring_field_crop.crop.id,
+                        "name": self.spring_field_crop.crop.name,
+                    },
+                    "season": {
+                        "id": self.spring_field_crop.season.id,
+                        "name": self.spring_field_crop.season.name,
+                        "year": self.spring_field_crop.season.year,
+                    },
+                    "status": self.spring_field_crop.status,
+                    "operations_count": 3,
+                    "total_cost": 35.5,
+                    "cost_per_hectare": 3.55,
+                    "resources": {
+                        "water": 6.5,
+                        "fertilizer": 2.0,
+                    },
+                },
+                {
+                    "field_crop_id": self.summer_field_crop.id,
+                    "field": {
+                        "id": self.summer_field_crop.field.id,
+                        "name": self.summer_field_crop.field.name,
+                    },
+                    "crop": {
+                        "id": self.summer_field_crop.crop.id,
+                        "name": self.summer_field_crop.crop.name,
+                    },
+                    "season": {
+                        "id": self.summer_field_crop.season.id,
+                        "name": self.summer_field_crop.season.name,
+                        "year": self.summer_field_crop.season.year,
+                    },
+                    "status": self.summer_field_crop.status,
+                    "operations_count": 1,
+                    "total_cost": 6.0,
+                    "cost_per_hectare": 0.6,
+                    "resources": {
+                        "seed": 2.0,
+                    },
+                },
+                {
+                    "field_crop_id": self.empty_field_crop.id,
+                    "field": {
+                        "id": self.empty_field_crop.field.id,
+                        "name": self.empty_field_crop.field.name,
+                    },
+                    "crop": {
+                        "id": self.empty_field_crop.crop.id,
+                        "name": self.empty_field_crop.crop.name,
+                    },
+                    "season": {
+                        "id": self.empty_field_crop.season.id,
+                        "name": self.empty_field_crop.season.name,
+                        "year": self.empty_field_crop.season.year,
+                    },
+                    "status": self.empty_field_crop.status,
+                    "operations_count": 0,
+                    "total_cost": 0.0,
+                    "cost_per_hectare": 0.0,
+                    "resources": {},
+                },
+            ],
+        )
+
+    def test_season_report_endpoint_returns_requested_season_for_authenticated_user(self):
+        response = self.client.get(reverse("api-season-report", args=[self.spring_season.id]))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response.json(),
+            {
+                "season_id": self.spring_season.id,
+                "season": {
+                    "id": self.spring_season.id,
+                    "name": self.spring_season.name,
+                    "year": self.spring_season.year,
+                },
+                "total_cost": 35.5,
+                "fields_count": 2,
+                "operations_count": 3,
+                "resources": {
+                    "water": 6.5,
+                    "fertilizer": 2.0,
+                },
+            },
+        )
+
+    def test_endpoints_require_authentication(self):
+        self.client.force_authenticate(user=None)
+
+        dashboard_response = self.client.get(reverse("api-dashboard"))
+        field_crops_response = self.client.get(reverse("api-field-crops"))
+        season_response = self.client.get(reverse("api-season-report", args=[self.spring_season.id]))
+
+        self.assertEqual(dashboard_response.status_code, 403)
+        self.assertEqual(field_crops_response.status_code, 403)
+        self.assertEqual(season_response.status_code, 403)

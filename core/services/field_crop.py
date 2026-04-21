@@ -1,11 +1,15 @@
 from decimal import Decimal
 from django.db.models import F, Sum, DecimalField, ExpressionWrapper
 from core.models import FieldCrop, OperationResource, Operation
+from django.db.models.functions import Coalesce
 
 ZERO_DECIMAL = Decimal("0")
 
 COST_EXPR = ExpressionWrapper(
-    F("quantity") * F("resource__cost_per_unit"),
+    F("quantity") * Coalesce(
+        F("price_per_unit"),
+        F("resource__cost_per_unit")
+    ),
     output_field=DecimalField(max_digits=12, decimal_places=2)
 )
 
@@ -21,19 +25,32 @@ def calculate_field_crop_total_cost(field_crop: FieldCrop) -> Decimal:
     return result["total_cost"] or ZERO_DECIMAL
 
 
-def get_field_crop_resources(field_crop: FieldCrop) -> dict[str, Decimal]:
+def get_field_crop_resources(field_crop: FieldCrop):
     qs = OperationResource.objects.filter(
         operation__field_crop=field_crop
     )
 
-    queryset = qs.values("resource__type").annotate(
-        total_quantity=Sum("quantity")
+    queryset = qs.values("resource__name").annotate(
+        total_quantity=Sum("quantity"),
+        total_cost=Sum(
+            ExpressionWrapper(
+                F("quantity") * Coalesce(
+                    F("price_per_unit"),
+                    F("resource__cost_per_unit")
+                ),
+                output_field=DecimalField(max_digits=14, decimal_places=2)
+            )
+        )
     )
 
-    return {
-        item["resource__type"]: item["total_quantity"] if item["total_quantity"] is not None else ZERO_DECIMAL
+    return [
+        {
+            "name": item["resource__name"],
+            "quantity": item["total_quantity"] or ZERO_DECIMAL,
+            "cost": item["total_cost"] or ZERO_DECIMAL,
+        }
         for item in queryset
-    }
+    ]
 
 
 def get_field_crop_operations_count(field_crop: FieldCrop) -> int:

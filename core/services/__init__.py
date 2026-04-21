@@ -19,6 +19,7 @@ from .operations import (
     get_operation_resources_summary,
 )
 from .reporting import get_dashboard_data, get_field_crop_report, get_season_report
+from .reporting import get_field_crops_reports, get_user_field_crop_or_404, get_user_season_or_404
 
 __all__ = [
     "calculate_cost_per_hectare",
@@ -27,6 +28,7 @@ __all__ = [
     "calculate_season_total_cost",
     "calculate_user_total_cost",
     "get_dashboard_data",
+    "get_field_crops_reports",
     "get_field_crop_operations_count",
     "get_field_crop_resources",
     "get_field_crop_report",
@@ -35,7 +37,9 @@ __all__ = [
     "get_season_operations_count",
     "get_season_report",
     "get_season_resources_summary",
+    "get_user_field_crop_or_404",
     "get_user_fields_count",
     "get_user_operations_count",
     "get_user_resources_summary",
+    "get_user_season_or_404",
 ]

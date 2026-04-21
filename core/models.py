@@ -195,10 +195,28 @@ class OperationResource(TimeStampedModel):
         on_delete=models.CASCADE,
         related_name="operation_resources",
     )
-    quantity = models.DecimalField(max_digits=10, decimal_places=2)
+    quantity = models.DecimalField(max_digits=12, decimal_places=2)
+    price_per_unit = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        null=True,   # временно!
+        blank=True
+    )
+
+    def save(self, *args, **kwargs):
+        if self.price_per_unit is None:
+            if self.resource_id:
+                self.price_per_unit = Resource.objects.get(pk=self.resource_id).cost_per_unit
+        super().save(*args, **kwargs)
 
     class Meta:
         unique_together = ("operation", "resource")
 
     def __str__(self):
         return f"{self.operation} - {self.resource}"
+
+
+class ExchangeRate(models.Model):
+    currency = models.CharField(max_length=10)
+    rate = models.DecimalField(max_digits=10, decimal_places=2)
+    updated_at = models.DateTimeField(auto_now=True)
