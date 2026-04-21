@@ -16,15 +16,23 @@ class TimeStampedModel(models.Model):
 
 class User(AbstractUser, TimeStampedModel):
     class Role(models.TextChoices):
+        OWNER = "owner", "Owner"
+        WORKER = "worker", "Worker"
         ADMIN = "admin", "Admin"
-        EMPLOYEE = "employee", "Employee"
         AGRONOMIST = "agronomist", "Agronomist"
 
     email = models.EmailField(unique=True, null=True, blank=True)
     role = models.CharField(
         max_length=20,
         choices=Role.choices,
-        default=Role.EMPLOYEE,
+        default=Role.OWNER
+    )
+    owner = models.ForeignKey(
+        "self",
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="workers"
     )
 
 
@@ -220,3 +228,5 @@ class ExchangeRate(models.Model):
     currency = models.CharField(max_length=10)
     rate = models.DecimalField(max_digits=10, decimal_places=2)
     updated_at = models.DateTimeField(auto_now=True)
+
+    

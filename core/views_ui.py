@@ -13,8 +13,11 @@ from core.services import (
 
 @login_required
 def dashboard_view(request):
+    period = request.GET.get("period", "all")
+
     data = {
-        "dashboard": get_dashboard_data(request.user),
+        "dashboard": get_dashboard_data(request.user, period=period),
+        "user_role": request.user.role,
     }
     from core.services.currency import get_usd_rate
     data["usd_rate"] = get_usd_rate()
@@ -51,9 +54,12 @@ def dashboard_view(request):
     data["sort"] = sort
     data["order"] = order
     data["next_order"] = next_order
+    data["is_worker"] = request.user.role == "WORKER"
+    data["is_owner"] = request.user.role == "OWNER"
     
     query_dict = request.GET.copy()
     query_dict.pop("currency", None)
+    query_dict.pop("period", None)
     data["query_params"] = query_dict.urlencode()
 
     return render(request, "core/dashboard.html", data)

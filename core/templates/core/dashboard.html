@@ -9,7 +9,7 @@
         <h1 class="h3 mb-1">Dashboard</h1>
         <p class="text-muted mb-0">Reporting overview for your fields and operations.</p>
     </div>
-    <div class="mb-3">
+    <div class="mb-3 d-flex align-items-center gap-2 flex-wrap">
         <a href="?currency=uzs&{{ query_params }}"
             class="btn btn-sm {% if currency == 'uzs' %}btn-dark{% else %}btn-outline-dark{% endif %}">
             UZS
@@ -51,6 +51,30 @@
             </div>
         </div>
     </div>
+</div>
+<div class="mb-3 d-flex align-items-center gap-2 flex-wrap">
+    <small class="text-muted me-2">Period:</small>
+
+    <a href="?period=all&currency={{ currency }}&{{ query_params }}"
+        class="btn btn-sm {% if period == 'all' %}btn-dark{% else %}btn-outline-dark{% endif %}">
+        All
+    </a>
+
+    <a href="?period=season&currency={{ currency }}&{{ query_params }}"
+        class="btn btn-sm {% if period == 'season' %}btn-dark{% else %}btn-outline-dark{% endif %}">
+        Season
+    </a>
+
+    <a href="?period=month&currency={{ currency }}&{{ query_params }}"
+        class="btn btn-sm {% if period == 'month' %}btn-dark{% else %}btn-outline-dark{% endif %}">
+        Month
+    </a>
+
+    {% if period == "month" %}
+    <span class="badge bg-primary">This month</span>
+    {% elif period == "season" %}
+    <span class="badge bg-success">Current season</span>
+    {% endif %}
 </div>
 
 <div class="card border-0 shadow-sm">

@@ -18,15 +18,35 @@ COST_EXPR = ExpressionWrapper(
 )
 
 
-def calculate_user_total_cost(user: User) -> Decimal:
-    result = OperationResource.objects.filter(
-        operation__field_crop__field__owner=user,
-    ).annotate(
+from django.utils.timezone import now
+
+def get_base_queryset(user: User, period="all"):
+    qs = OperationResource.objects.filter(
+        operation__field_crop__field__owner=user
+    )
+
+    if period == "month":
+        today = now()
+        qs = qs.filter(operation__date__month=today.month)
+
+    elif period == "season":
+        today = now().date()
+
+        qs = qs.filter(
+            operation__field_crop__season__start_date__lte=today,
+            operation__field_crop__season__end_date__gte=today,
+    )
+
+    return qs
+
+def calculate_user_total_cost(user: User, period="all") -> Decimal:
+    qs = get_base_queryset(user, period)
+
+    result = qs.annotate(
         total=COST_EXPR,
     ).aggregate(total_cost=Sum("total"))
 
-    return result["total_cost"] if result["total_cost"] is not None else ZERO_DECIMAL
-
+    return result["total_cost"] or ZERO_DECIMAL
 
 def calculate_season_total_cost(season: Season, user: User) -> Decimal:
     result = OperationResource.objects.filter(
@@ -39,18 +59,19 @@ def calculate_season_total_cost(season: Season, user: User) -> Decimal:
     return result["total_cost"] if result["total_cost"] is not None else ZERO_DECIMAL
 
 
-def get_user_fields_count(user: User) -> int:
-    return user.fields.count()
+def get_user_fields_count(user: User, period="all"):
+    qs = get_base_queryset(user, period)
+    return qs.values("operation__field_crop__field").distinct().count()
 
 
-def get_user_operations_count(user: User) -> int:
-    return Operation.objects.filter(field_crop__field__owner=user).count()
+def get_user_operations_count(user: User, period="all") -> int:
+    qs = get_base_queryset(user, period)
+
+    return qs.values("operation").distinct().count()
 
 
-def get_user_resources_summary(user: User):
-    qs = OperationResource.objects.filter(
-        operation__field_crop__field__owner=user
-    )
+def get_user_resources_summary(user: User, period="all"):
+    qs = get_base_queryset(user, period)
 
     queryset = qs.values("resource__name").annotate(
         total_quantity=Sum("quantity"),

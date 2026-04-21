@@ -7,10 +7,10 @@ from core.services.analytics import (
 )
 
 
-def get_dashboard_data(user: User) -> dict:
+def get_dashboard_data(user: User, period="all") -> dict:
     return {
-        "total_cost": calculate_user_total_cost(user),
-        "fields_count": get_user_fields_count(user),
-        "operations_count": get_user_operations_count(user),
-        "resources": get_user_resources_summary(user),
+        "total_cost": calculate_user_total_cost(user, period=period),
+        "fields_count": get_user_fields_count(user, period=period),
+        "operations_count": get_user_operations_count(user, period=period),
+        "resources": get_user_resources_summary(user, period=period),
     }
