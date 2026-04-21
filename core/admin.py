@@ -8,19 +8,35 @@ from .models import (
 # =====================
 # USER
 # =====================
+class WorkerInline(admin.TabularInline):
+    model = User
+    fk_name = "owner"
+    extra = 0
+
+    def get_queryset(self, request):
+        qs = super().get_queryset(request)
+        return qs.filter(role="worker")
+
+
 @admin.register(User)
 class CustomUserAdmin(UserAdmin):
     model = User
 
-    list_display = ("username", "email", "role", "is_staff")
+    list_display = ("username", "email", "role", "owner", "is_staff")
+    list_filter = ("role", "owner")
 
     fieldsets = UserAdmin.fieldsets + (
-        ("Дополнительно", {"fields": ("role",)}),
+        ("Дополнительно", {"fields": ("role", "owner")}),
     )
 
     add_fieldsets = UserAdmin.add_fieldsets + (
-        ("Дополнительно", {"fields": ("email", "role")}),
+        ("Дополнительно", {"fields": ("email", "role", "owner")}),
     )
+
+    def get_inlines(self, request, obj):
+        if obj and obj.role == "owner":
+            return [WorkerInline]
+        return []
 
 
 # =====================

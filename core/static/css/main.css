@@ -1,0 +1,245 @@
+        html {
+            scroll-behavior: smooth;
+        }
+
+        .table-hover tbody tr {
+            transition: background-color 0.15s ease, box-shadow 0.15s ease;
+        }
+
+        /* LIGHT */
+        .table-hover tbody tr:hover {
+            background-color: #f8f9fa;
+        }
+
+
+        /* добавили scale внутрь */
+        .table-hover tbody tr td>* {
+            transition: transform 0.15s ease;
+        }
+
+        .table-hover tbody tr:hover td>* {
+            transform: scale(1.02);
+        }
+
+        /* LIGHT
+        html[data-bs-theme="light"] .navbar {
+            background-color: #198754;
+             зелёный 
+        } */
+
+        /* DARK */
+        html[data-bs-theme="dark"] .navbar {
+            background-color: #2a2a2a;
+            border-bottom: 1px solid #444;
+        }
+
+        html[data-bs-theme="light"] .navbar .nav-link {
+            color: white;
+        }
+
+        html[data-bs-theme="dark"] .navbar .nav-link {
+            color: #ddd;
+        }
+
+        /* LIGHT NAVBAR TEXT */
+        html[data-bs-theme="light"] .app-navbar .nav-link,
+        html[data-bs-theme="light"] .app-navbar .navbar-brand {
+            color: #212529;
+        }
+
+        /* hover */
+        html[data-bs-theme="light"] .app-navbar .nav-link:hover {
+            color: #000;
+        }
+
+        html[data-bs-theme="light"] .app-navbar .btn {
+            color: #212529;
+            border-color: #ccc;
+        }
+
+        html[data-bs-theme="dark"] .app-navbar .nav-link,
+        html[data-bs-theme="dark"] .app-navbar .navbar-brand {
+            color: #eee;
+        }
+
+        .navbar {
+            transition: background-color 0.3s ease;
+        }
+
+        .navbar .nav-link {
+            transition: color 0.2s ease;
+        }
+
+        body {
+            transition: background-color 0.3s ease;
+            padding-top: 70px;
+        }
+
+        .navbar button {
+            border-color: rgba(255, 255, 255, 0.3);
+        }
+
+        /* LIGHT */
+        html[data-bs-theme="light"] body {
+            background-color: #f8f9fa;
+        }
+
+        /* DARK */
+        html[data-bs-theme="dark"] body {
+            background-color: #121212;
+        }
+
+        button img {
+            transition: transform 0.2s ease;
+        }
+
+        button:hover img {
+            transform: rotate(20deg);
+        }
+
+        /* TABLE */
+        html[data-bs-theme="dark"] table {
+            color: #ddd;
+            border-color: #333;
+        }
+
+        html[data-bs-theme="dark"] tbody tr {
+            background-color: #181818;
+        }
+
+        html[data-bs-theme="dark"] tbody tr:hover {
+            background-color: #222;
+        }
+
+        html[data-bs-theme="dark"] thead {
+            background-color: #1e1e1e !important;
+            color: #ddd;
+        }
+
+        /* zebra эффект */
+        html[data-bs-theme="dark"] tbody tr:nth-child(even) {
+            background-color: #1c1c1c;
+        }
+
+        /* LIGHT */
+        .period-form {
+            background-color: #f8f9fa;
+        }
+
+        /* DARK */
+        html[data-bs-theme="dark"] .period-form {
+            background-color: #1e1e1e;
+        }
+
+        html[data-bs-theme="dark"] .table {
+            --bs-table-bg: #181818;
+            --bs-table-striped-bg: #1c1c1c;
+            --bs-table-hover-bg: #222;
+            --bs-table-color: #ddd;
+        }
+
+        html[data-bs-theme="dark"] .app-navbar {
+            background-color: rgba(30, 30, 30, 0.7);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        /* базовая кнопка */
+        .toggle-btn {
+            border: 1px solid #6c757d;
+            background: transparent;
+            color: inherit;
+            padding: 4px 10px;
+            transition: all 0.2s ease;
+            border-radius: 6px;
+        }
+
+        /* hover */
+        .toggle-btn:hover {
+            border-color: #999;
+        }
+
+        /* ACTIVE (спокойный серый) */
+        .toggle-btn.active {
+            border: 2px solid #adb5bd;
+            background-color: rgba(173, 181, 189, 0.2);
+            color: inherit;
+            font-weight: 500;
+        }
+
+        /* DARK MODE */
+        html[data-bs-theme="dark"] .toggle-btn {
+            border-color: #555;
+        }
+
+        html[data-bs-theme="dark"] .toggle-btn.active {
+            border-color: #888;
+            background-color: rgba(200, 200, 200, 0.1);
+        }
+
+        @media (max-width: 576px) {
+            .navbar-collapse {
+                text-align: center;
+            }
+
+            .navbar-nav {
+                align-items: center;
+                width: 100%;
+            }
+
+            .navbar-nav .nav-item {
+                width: 100%;
+            }
+
+            .navbar-nav .nav-link {
+                padding: 10px 0;
+            }
+
+            .navbar-actions {
+                justify-content: center;
+                margin-top: 10px;
+                width: 100%;
+            }
+        }
+
+        @media (max-width: 576px) {
+            .navbar-actions form {
+                width: 100%;
+            }
+
+            .navbar-actions button {
+                width: 100%;
+            }
+        }
+
+        @media (max-width: 576px) {
+            .navbar-collapse {
+                padding-top: 10px;
+            }
+
+            .navbar-nav {
+                border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+                margin-bottom: 10px;
+            }
+        }
+
+        .app-navbar {
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+
+            background-color: rgba(255, 255, 255, 0.7);
+            border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+
+            transition: all 0.3s ease;
+        }
+
+        .card {
+            border-radius: 14px;
+        }
+
+        .card-body {
+            padding: 20px;
+        }
+
+        h5 {
+            font-weight: 600;
+        }

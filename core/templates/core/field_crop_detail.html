@@ -60,28 +60,50 @@
     </div>
 </div>
 
-<div class="card border-0 shadow-sm">
-    <div class="card-header bg-white">
+<div class="card border-0 shadow-sm" id="resources-table">
+    <div class="card-header bg-body">
         <h2 class="h5 mb-0">Resources</h2>
     </div>
     <div class="card-body p-0">
         <div class="table-responsive">
             <table class="table table-hover mb-0">
-                <thead class="table-light">
-                    <tr>
-                        <th>Name</th>
-                        <th>Quantity</th>
+                <thead>
+                    <tr class="align-middle">
+                        <th>
+                            <a href="?sort=name&order={{ next_order }}&{{ query_params }}#resources-table"
+                                class="text-decoration-none text-body d-flex align-items-center gap-1">
+                                Name
+                                {% include "components/sort_icon.html" with current_sort=sort current_order=order column="name" %}
+                            </a>
+                        </th>
+
+                        <th class="text-center">
+                            <a href="?sort=quantity&order={{ next_order }}&{{ query_params }}#resources-table"
+                                class="text-decoration-none text-body d-flex justify-content-center align-items-center gap-1">
+                                Quantity
+                                {% include "components/sort_icon.html" with current_sort=sort current_order=order column="quantity" %}
+                            </a>
+                        </th>
+
+                        <th class="text-center">
+                            <a href="?sort=cost&order={{ next_order }}&{{ query_params }}#resources-table"
+                                class="text-decoration-none text-body d-flex justify-content-left align-items-center gap-1">
+                                Cost
+                                {% include "components/sort_icon.html" with current_sort=sort current_order=order column="cost" %}
+                            </a>
+                        </th>
                     </tr>
                 </thead>
                 <tbody>
-                    {% for name, quantity in report.resources.items %}
-                    <tr>
-                        <td>{{ name|title }}</td>
-                        <td>{{ quantity }}</td>
+                    {% for r in report.resources %}
+                    <tr class="align-middle">
+                        <td>{{ r.name }}</td>
+                        <td class="text-center">{{ r.quantity }}</td>
+                        <td class="text-body">{{ r.cost|money }}</td>
                     </tr>
                     {% empty %}
-                    <tr>
-                        <td colspan="2" class="text-center text-muted py-4">No resources found.</td>
+                    <tr class="align-middle">
+                        <td colspan="3" class="text-center text-muted">No resources found</td>
                     </tr>
                     {% endfor %}
                 </tbody>

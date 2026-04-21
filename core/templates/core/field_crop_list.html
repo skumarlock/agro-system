@@ -7,6 +7,9 @@
     <div>
         <h1 class="h3 mb-1">Field Crops</h1>
         <p class="text-muted mb-0">List of field crops available for the current user.</p>
+        <a href="{% url 'create-worker' %}" class="btn btn-sm btn-outline-secondary">
+            + New Worker
+        </a>
     </div>
 </div>
 
@@ -14,7 +17,7 @@
     <div class="card-body p-0">
         <div class="table-responsive">
             <table class="table table-hover align-middle mb-0">
-                <thead class="table-light">
+                <thead class="table-body">
                     <tr>
                         <th>Field Name</th>
                         <th>Crop Name</th>

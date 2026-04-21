@@ -25,12 +25,12 @@ class FieldCropReportListAPIView(APIView):
         return Response(get_field_crops_reports(request.user))
 
 
-class SeasonReportAPIView(APIView):
-    permission_classes = [IsAuthenticated]
+# class SeasonReportAPIView(APIView):
+#     permission_classes = [IsAuthenticated]
 
-    def get(self, request, pk):
-        season = get_object_or_404(
-            Season.objects.filter(owner=request.user),
-            pk=pk,
-        )
-        return Response(get_season_report(season, request.user))
+#     def get(self, request, pk):
+#         season = get_object_or_404(
+#             Season.objects.filter(owner=request.user),
+#             pk=pk,
+#         )
+#         return Response(get_season_report(season, request.user))

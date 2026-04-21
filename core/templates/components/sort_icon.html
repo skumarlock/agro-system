@@ -1,0 +1,15 @@
+{% if current_sort == column %}
+{% if current_order == "asc" %}
+<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" class="bi bi-chevron-up text-muted"
+    viewBox="0 0 16 16">
+    <path fill-rule="evenodd"
+        d="M8 12a.5.5 0 0 1-.5-.5V4.707L5.354 6.854a.5.5 0 1 1-.708-.708l3-3a.5.5 0 0 1 .708 0l3 3a.5.5 0 0 1-.708.708L8.5 4.707V11.5A.5.5 0 0 1 8 12z" />
+</svg>
+{% else %}
+<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" class="bi bi-chevron-down text-muted"
+    viewBox="0 0 16 16">
+    <path fill-rule="evenodd"
+        d="M8 4a.5.5 0 0 1 .5.5v6.793l2.146-2.147a.5.5 0 0 1 .708.708l-3 3a.5.5 0 0 1-.708 0l-3-3a.5.5 0 0 1 .708-.708L7.5 11.293V4.5A.5.5 0 0 1 8 4z" />
+</svg>
+{% endif %}
+{% endif %}

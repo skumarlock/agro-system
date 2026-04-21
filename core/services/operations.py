@@ -34,3 +34,24 @@ def calculate_operation_cost(operation: Operation) -> Decimal:
     ).aggregate(total_cost=Sum("total"))
 
     return result["total_cost"] or ZERO_DECIMAL
+
+
+def get_user_operations(user, limit=None):
+    qs = Operation.objects.select_related(
+        "field_crop__field",
+        "field_crop__crop"
+    ).prefetch_related(
+        "operation_resources__resource"
+    )
+
+    if user.role == "OWNER":
+        qs = qs.filter(field_crop__field__owner=user)
+    else:
+        qs = qs.filter(performed_by=user)
+
+    qs = qs.order_by("-date")
+
+    if limit:
+        qs = qs[:limit]
+
+    return qs

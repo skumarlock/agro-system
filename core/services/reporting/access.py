@@ -4,14 +4,29 @@ from core.models import FieldCrop, Season, User
 
 
 def get_user_field_crop_or_404(user: User, pk: int) -> FieldCrop:
-    return get_object_or_404(
-        FieldCrop.objects.filter(field__owner=user).select_related("field", "crop", "season"),
-        pk=pk,
-    )
+    qs = FieldCrop.objects.select_related("field", "crop", "season")
+
+    if user.role == "owner":
+        qs = qs.filter(field__owner=user)
+    elif user.role == "agronomist":
+        qs = qs.filter(field__owner=user.owner) 
+    else:
+        qs = qs.filter(operations__performed_by=user)
+
+    return get_object_or_404(qs.distinct(), pk=pk)
 
 
 def get_user_season_or_404(user: User, pk: int) -> Season:
-    return get_object_or_404(
-        Season.objects.filter(field_crops__field__owner=user).distinct(),
-        pk=pk,
-    )
+    qs = Season.objects.all()
+
+    if user.role == "owner":
+        qs = qs.filter(field_crops__field__owner=user)
+    elif user.role == "agronomist":
+        qs = qs.filter(field_crops__field__owner=user.owner)
+    else:
+        qs = qs.filter(
+            field_crops__operations__performed_by=user
+        )
+
+    return get_object_or_404(qs.distinct(), pk=pk)
+    

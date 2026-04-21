@@ -9,32 +9,51 @@
         <h1 class="h3 mb-1">Dashboard</h1>
         <p class="text-muted mb-0">Reporting overview for your fields and operations.</p>
     </div>
-    <div class="mb-3 d-flex align-items-center gap-2 flex-wrap">
-        <a href="?currency=uzs&{{ query_params }}"
-            class="btn btn-sm {% if currency == 'uzs' %}btn-dark{% else %}btn-outline-dark{% endif %}">
-            UZS
-        </a>
+    <div class="mb-3">
+    <div class="btn-group">
+    <a href="?currency=uzs&{{ query_params }}"
+       class="btn btn-sm toggle-btn {% if currency == 'uzs' %}active{% endif %}">
+        UZS
+    </a>
 
-        <a href="?currency=usd&{{ query_params }}"
-            class="btn btn-sm {% if currency == 'usd' %}btn-dark{% else %}btn-outline-dark{% endif %}">
-            USD
-        </a>
-    </div>
+    <a href="?currency=usd&{{ query_params }}"
+       class="btn btn-sm toggle-btn {% if currency == 'usd' %}active{% endif %}">
+        USD
+    </a>
 </div>
-
+</div>
+</div>
+{% if is_worker %}
+<div class="alert alert-info">
+    Showing only your activity
+</div>
+{% endif %}
+{% if is_owner %}
 <div class="row g-4 mb-4">
     <div class="col-md-4">
         <div class="card border-0 shadow-sm h-100">
             <div class="card-body">
                 <p class="text-muted text-uppercase small mb-2">Total Cost</p>
-                <h2 class="h3 mb-0">{% if currency == "usd" %}
-                    {{ dashboard.total_cost|money_usd }}
+
+                <h2 class="h3 mb-0">
+                    {% if currency == "usd" %}
+                    {{ dashboard.total_cost|money_short_usd }}
                     {% else %}
-                    {{ dashboard.total_cost|money }}
-                    {% endif %}</h2>
+                    {{ dashboard.total_cost|money_short }}
+                    {% endif %}
+                </h2>
+
+                <small class="text-muted">
+                    {% if currency == "usd" %}
+                    ({{ dashboard.total_cost|money_usd }})
+                    {% else %}
+                    ({{ dashboard.total_cost|money }})
+                    {% endif %}
+                </small>
             </div>
         </div>
     </div>
+
     <div class="col-md-4">
         <div class="card border-0 shadow-sm h-100">
             <div class="card-body">
@@ -43,6 +62,7 @@
             </div>
         </div>
     </div>
+
     <div class="col-md-4">
         <div class="card border-0 shadow-sm h-100">
             <div class="card-body">
@@ -52,33 +72,97 @@
         </div>
     </div>
 </div>
-<div class="mb-3 d-flex align-items-center gap-2 flex-wrap">
+{% if is_worker %}
+<div class="row g-4 mb-4">
+    <div class="col-md-6">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-body">
+                <p class="text-muted text-uppercase small mb-2">My Total Cost</p>
+                <h2 class="h3 mb-0">
+                    {% if currency == "usd" %}
+                    {{ dashboard.total_cost|money_usd }}
+                    {% else %}
+                    {{ dashboard.total_cost|money }}
+                    {% endif %}
+                </h2>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-6">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-body">
+                <p class="text-muted text-uppercase small mb-2">My Operations</p>
+                <h2 class="h3 mb-0">{{ dashboard.operations_count }}</h2>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endif %}
+<div class="mb-3 d-flex align-items-center gap-3 flex-wrap">
+    {% if is_owner %}
+
     <small class="text-muted me-2">Period:</small>
 
-    <a href="?period=all&currency={{ currency }}&{{ query_params }}"
-        class="btn btn-sm {% if period == 'all' %}btn-dark{% else %}btn-outline-dark{% endif %}">
+    <!-- ALL -->
+    <a href="?period=all&currency={{ currency }}"
+        class="btn btn-sm toggle-btn {% if period == 'all' %}active{% endif %}">
         All
     </a>
 
-    <a href="?period=season&currency={{ currency }}&{{ query_params }}"
-        class="btn btn-sm {% if period == 'season' %}btn-dark{% else %}btn-outline-dark{% endif %}">
-        Season
-    </a>
+    <!-- DIVIDER -->
+    <div class="vr"></div>
+    
 
-    <a href="?period=month&currency={{ currency }}&{{ query_params }}"
-        class="btn btn-sm {% if period == 'month' %}btn-dark{% else %}btn-outline-dark{% endif %}">
-        Month
-    </a>
+    <!-- MONTH -->
+    <form method="get" class="d-flex align-items-center gap-2 p-2 rounded period-form">
+        <input type="hidden" name="period" value="month">
+        <input type="hidden" name="currency" value="{{ currency }}">
 
-    {% if period == "month" %}
-    <span class="badge bg-primary">This month</span>
-    {% elif period == "season" %}
-    <span class="badge bg-success">Current season</span>
-    {% endif %}
+        <select name="month" class="form-select form-select-sm">
+            {% for m, name in months %}
+            <option value="{{ m }}" {% if request.GET.month == m|stringformat:"s" %}selected{% endif %}>
+                {{ name }}
+            </option>
+            {% endfor %}
+        </select>
+
+        <select name="year" class="form-select form-select-sm">
+            {% for y in years %}
+            <option value="{{ y }}" {% if request.GET.year == y|stringformat:"s" %}selected{% endif %}>
+                {{ y }}
+            </option>
+            {% endfor %}
+        </select>
+
+        <button class="btn btn-sm btn-outline-primary">Apply</button>
+        
+    </form>
+
+    <!-- DIVIDER -->
+    <div class="vr"></div>
+
+    <!-- SEASON -->
+    <form method="get" class="d-flex align-items-center gap-2 p-2 rounded period-form">
+        <input type="hidden" name="period" value="season">
+        <input type="hidden" name="currency" value="{{ currency }}">
+
+        <select name="season_id" class="form-select form-select-sm">
+            {% for s in seasons %}
+            <option value="{{ s.id }}" {% if request.GET.season_id == s.id|stringformat:"s" %}selected{% endif %}>
+                {{ s }}
+            </option>
+            {% endfor %}
+        </select>
+
+        <button class="btn btn-sm btn-outline-success">Apply</button>
+    </form>
+
 </div>
 
-<div class="card border-0 shadow-sm">
-    <div class="card-header bg-white d-flex justify-content-between align-items-center">
+<div id="resources-table" class="card border-0 shadow-sm">
+    <div class="card-header d-flex justify-content-between align-items-center">
         <h2 class="h5 mb-0">Resources</h2>
 
         <div class="d-flex align-items-center gap-3">
@@ -89,84 +173,39 @@
             <a href="{% url 'update-rate' %}" class="btn btn-sm btn-outline-secondary">
                 🔄 Update rate
             </a>
+            
+            <a href="{% url 'create-operation' %}" class="btn btn-sm btn-outline-secondary px-3">
+                + New Operation
+            </a>
+            
         </div>
     </div>
     <div class="card-body p-0">
         <div class="table-responsive">
             <table class="table table-hover mb-0" style="table-layout: fixed;">
-                <thead class="table-light" style="position: sticky; top: 0; z-index: 2; background: white;">
+                <thead style="position: sticky; top: 0; z-index: 2;">
                     <tr>
                         <th style="width: 40%;">
-                            <a href="?sort=name&order={{ next_order }}&currency={{ currency }}"
-                                class="text-decoration-none text-dark d-flex align-items-center gap-1">
+                            <a href="?sort=name&order={{ next_order }}&{{ query_params }}#resources-table"
+                                class="text-decoration-none text-body d-flex align-items-center gap-1">
                                 Name
-                                {% if sort == "name" %}
-                                <span class="fw-semibold">
-                                    {% if order == "asc" %}
-                                    <!-- arrow up -->
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor"
-                                        class="bi bi-chevron-up text-muted" viewBox="0 0 16 16">
-                                        <path fill-rule="evenodd"
-                                            d="M8 12a.5.5 0 0 1-.5-.5V4.707L5.354 6.854a.5.5 0 1 1-.708-.708l3-3a.5.5 0 0 1 .708 0l3 3a.5.5 0 0 1-.708.708L8.5 4.707V11.5A.5.5 0 0 1 8 12z" />
-                                    </svg>
-                                    {% else %}
-                                    <!-- arrow down -->
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor"
-                                        class="bi bi-chevron-down text-muted" viewBox="0 0 16 16">
-                                        <path fill-rule="evenodd"
-                                            d="M8 4a.5.5 0 0 1 .5.5v6.793l2.146-2.147a.5.5 0 0 1 .708.708l-3 3a.5.5 0 0 1-.708 0l-3-3a.5.5 0 0 1 .708-.708L7.5 11.293V4.5A.5.5 0 0 1 8 4z" />
-                                    </svg>
-                                    {% endif %}
-                                </span>
-                                {% endif %}
+                                {% include "components/sort_icon.html" with current_sort=sort current_order=order column="name" %}
                             </a>
                         </th>
 
                         <th class="text-end" style="width: 25%;">
-                            <a href="?sort=quantity&order={{ next_order }}&currency={{ currency }}"
-                                class="text-decoration-none text-dark d-flex justify-content-center align-items-center gap-1">
+                            <a href="?sort=quantity&order={{ next_order }}&{{ query_params }}#resources-table"
+                                class="text-decoration-none text-body d-flex justify-content-center align-items-center gap-1">
                                 Quantity
-                                {% if sort == "quantity" %}
-                                <span class="fw-semibold">
-                                    {% if order == "asc" %}
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor"
-                                        class="bi bi-chevron-up text-muted" viewBox="0 0 16 16">
-                                        <path fill-rule="evenodd"
-                                            d="M8 12a.5.5 0 0 1-.5-.5V4.707L5.354 6.854a.5.5 0 1 1-.708-.708l3-3a.5.5 0 0 1 .708 0l3 3a.5.5 0 0 1-.708.708L8.5 4.707V11.5A.5.5 0 0 1 8 12z" />
-                                    </svg>
-                                    {% else %}
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor"
-                                        class="bi bi-chevron-down text-muted" viewBox="0 0 16 16">
-                                        <path fill-rule="evenodd"
-                                            d="M8 4a.5.5 0 0 1 .5.5v6.793l2.146-2.147a.5.5 0 0 1 .708.708l-3 3a.5.5 0 0 1-.708 0l-3-3a.5.5 0 0 1 .708-.708L7.5 11.293V4.5A.5.5 0 0 1 8 4z" />
-                                    </svg>
-                                    {% endif %}
-                                </span>
-                                {% endif %}
+                                {% include "components/sort_icon.html" with current_sort=sort current_order=order column="quantity" %}
                             </a>
                         </th>
 
                         <th class="text-end" style="width: 35%;">
-                            <a href="?sort=cost&order={{ next_order }}&currency={{ currency }}"
-                                class="text-decoration-none text-dark d-flex justify-content-center align-items-center gap-1">
+                            <a href="?sort=cost&order={{ next_order }}&{{ query_params }}#resources-table"
+                                class="text-decoration-none text-body d-flex justify-content-center align-items-center gap-1">
                                 Cost
-                                {% if sort == "cost" %}
-                                <span class="fw-semibold">
-                                    {% if order == "asc" %}
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor"
-                                        class="bi bi-chevron-up text-muted" viewBox="0 0 16 16">
-                                        <path fill-rule="evenodd"
-                                            d="M8 12a.5.5 0 0 1-.5-.5V4.707L5.354 6.854a.5.5 0 1 1-.708-.708l3-3a.5.5 0 0 1 .708 0l3 3a.5.5 0 0 1-.708.708L8.5 4.707V11.5A.5.5 0 0 1 8 12z" />
-                                    </svg>
-                                    {% else %}
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor"
-                                        class="bi bi-chevron-down text-muted" viewBox="0 0 16 16">
-                                        <path fill-rule="evenodd"
-                                            d="M8 4a.5.5 0 0 1 .5.5v6.793l2.146-2.147a.5.5 0 0 1 .708.708l-3 3a.5.5 0 0 1-.708 0l-3-3a.5.5 0 0 1 .708-.708L7.5 11.293V4.5A.5.5 0 0 1 8 4z" />
-                                    </svg>
-                                    {% endif %}
-                                </span>
-                                {% endif %}
+                                {% include "components/sort_icon.html" with current_sort=sort current_order=order column="cost" %}
                             </a>
                         </th>
                     </tr>
@@ -194,4 +233,5 @@
         </div>
     </div>
 </div>
+{% endif %}
 {% endblock %}

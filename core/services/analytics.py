@@ -20,27 +20,40 @@ COST_EXPR = ExpressionWrapper(
 
 from django.utils.timezone import now
 
-def get_base_queryset(user: User, period="all"):
+def get_base_queryset(user: User, period="all", month=None, year=None, season_id=None):
     qs = OperationResource.objects.filter(
         operation__field_crop__field__owner=user
     )
 
+    today = now().date()
+
     if period == "month":
-        today = now()
-        qs = qs.filter(operation__date__month=today.month)
+        if month and year:
+            qs = qs.filter(
+                operation__date__month=month,
+                operation__date__year=year
+            )
+        else:
+            qs = qs.filter(
+                operation__date__month=today.month,
+                operation__date__year=today.year
+            )
 
     elif period == "season":
-        today = now().date()
-
-        qs = qs.filter(
+        if season_id:
+            qs = qs.filter(
+                operation__field_crop__season_id=season_id
+            )
+        else:
+            qs = qs.filter(
             operation__field_crop__season__start_date__lte=today,
             operation__field_crop__season__end_date__gte=today,
-    )
+        )
 
     return qs
 
-def calculate_user_total_cost(user: User, period="all") -> Decimal:
-    qs = get_base_queryset(user, period)
+def calculate_user_total_cost(user: User, period="all", month=None, year=None, season_id=None) -> Decimal:
+    qs = get_base_queryset(user, period, month, year, season_id)
 
     result = qs.annotate(
         total=COST_EXPR,
@@ -59,19 +72,19 @@ def calculate_season_total_cost(season: Season, user: User) -> Decimal:
     return result["total_cost"] if result["total_cost"] is not None else ZERO_DECIMAL
 
 
-def get_user_fields_count(user: User, period="all"):
-    qs = get_base_queryset(user, period)
+def get_user_fields_count(user: User, period="all", month=None, year=None, season_id=None):
+    qs = get_base_queryset(user, period, month, year, season_id)
     return qs.values("operation__field_crop__field").distinct().count()
 
 
-def get_user_operations_count(user: User, period="all") -> int:
-    qs = get_base_queryset(user, period)
+def get_user_operations_count(user: User, period="all", month=None, year=None, season_id=None) -> int:
+    qs = get_base_queryset(user, period, month, year, season_id)
 
     return qs.values("operation").distinct().count()
 
 
-def get_user_resources_summary(user: User, period="all"):
-    qs = get_base_queryset(user, period)
+def get_user_resources_summary(user: User, period="all", month=None, year=None, season_id=None):
+    qs = get_base_queryset(user, period, month, year, season_id)
 
     queryset = qs.values("resource__name").annotate(
         total_quantity=Sum("quantity"),

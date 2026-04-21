@@ -38,7 +38,7 @@
     </div>
 </div>
 
-<div class="card border-0 shadow-sm">
+<div class="card border-0 shadow-sm" id="resources-table">
     <div class="card-header bg-white">
         <h2 class="h5 mb-0">Resources</h2>
     </div>
@@ -48,76 +48,26 @@
                 <thead class="table-light" style="position: sticky; top: 0; z-index: 2; background: white;">
                     <tr>
                         <th style="width: 40%;">
-                            <a href="?sort=name&order={{ next_order }}"
+                            <a href="?sort=name&order={{ next_order }}&{{ query_params }}#resources-table"
                                 class="text-decoration-none text-dark d-flex align-items-center gap-1">
                                 Name
-                                {% if sort == "name" %}
-                                <span class="fw-semibold">
-                                    {% if order == "asc" %}
-                                    <!-- arrow up -->
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor"
-                                        class="bi bi-chevron-up text-muted" viewBox="0 0 16 16">
-                                        <path fill-rule="evenodd"
-                                            d="M8 12a.5.5 0 0 1-.5-.5V4.707L5.354 6.854a.5.5 0 1 1-.708-.708l3-3a.5.5 0 0 1 .708 0l3 3a.5.5 0 0 1-.708.708L8.5 4.707V11.5A.5.5 0 0 1 8 12z" />
-                                    </svg>
-                                    {% else %}
-                                    <!-- arrow down -->
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor"
-                                        class="bi bi-chevron-down text-muted" viewBox="0 0 16 16">
-                                        <path fill-rule="evenodd"
-                                            d="M8 4a.5.5 0 0 1 .5.5v6.793l2.146-2.147a.5.5 0 0 1 .708.708l-3 3a.5.5 0 0 1-.708 0l-3-3a.5.5 0 0 1 .708-.708L7.5 11.293V4.5A.5.5 0 0 1 8 4z" />
-                                    </svg>
-                                    {% endif %}
-                                </span>
-                                {% endif %}
+                                {% include "components/sort_icon.html" with current_sort=sort current_order=order column="name" %}
                             </a>
                         </th>
 
                         <th style="width: 25%;">
-                            <a href="?sort=quantity&order={{ next_order }}"
+                            <a href="?sort=quantity&order={{ next_order }}&{{ query_params }}#resources-table"
                                 class="text-decoration-none text-dark d-flex justify-content-center align-items-center gap-1">
                                 Quantity
-                                {% if sort == "quantity" %}
-                                <span class="fw-semibold">
-                                    {% if order == "asc" %}
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor"
-                                        class="bi bi-chevron-up text-muted" viewBox="0 0 16 16">
-                                        <path fill-rule="evenodd"
-                                            d="M8 12a.5.5 0 0 1-.5-.5V4.707L5.354 6.854a.5.5 0 1 1-.708-.708l3-3a.5.5 0 0 1 .708 0l3 3a.5.5 0 0 1-.708.708L8.5 4.707V11.5A.5.5 0 0 1 8 12z" />
-                                    </svg>
-                                    {% else %}
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor"
-                                        class="bi bi-chevron-down text-muted" viewBox="0 0 16 16">
-                                        <path fill-rule="evenodd"
-                                            d="M8 4a.5.5 0 0 1 .5.5v6.793l2.146-2.147a.5.5 0 0 1 .708.708l-3 3a.5.5 0 0 1-.708 0l-3-3a.5.5 0 0 1 .708-.708L7.5 11.293V4.5A.5.5 0 0 1 8 4z" />
-                                    </svg>
-                                    {% endif %}
-                                </span>
-                                {% endif %}
+                                {% include "components/sort_icon.html" with current_sort=sort current_order=order column="quantity" %}
                             </a>
                         </th>
 
                         <th style="width: 35%;">
-                            <a href="?sort=cost&order={{ next_order }}"
+                            <a href="?sort=cost&order={{ next_order }}&{{ query_params }}#resources-table"
                                 class="text-decoration-none text-dark d-flex justify-content-center align-items-center gap-1">
                                 Cost
-                                {% if sort == "cost" %}
-                                <span class="fw-semibold">
-                                    {% if order == "asc" %}
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor"
-                                        class="bi bi-chevron-up text-muted" viewBox="0 0 16 16">
-                                        <path fill-rule="evenodd"
-                                            d="M8 12a.5.5 0 0 1-.5-.5V4.707L5.354 6.854a.5.5 0 1 1-.708-.708l3-3a.5.5 0 0 1 .708 0l3 3a.5.5 0 0 1-.708.708L8.5 4.707V11.5A.5.5 0 0 1 8 12z" />
-                                    </svg>
-                                    {% else %}
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor"
-                                        class="bi bi-chevron-down text-muted" viewBox="0 0 16 16">
-                                        <path fill-rule="evenodd"
-                                            d="M8 4a.5.5 0 0 1 .5.5v6.793l2.146-2.147a.5.5 0 0 1 .708.708l-3 3a.5.5 0 0 1-.708 0l-3-3a.5.5 0 0 1 .708-.708L7.5 11.293V4.5A.5.5 0 0 1 8 4z" />
-                                    </svg>
-                                    {% endif %}
-                                </span>
-                                {% endif %}
+                                {% include "components/sort_icon.html" with current_sort=sort current_order=order column="cost" %}
                             </a>
                         </th>
                     </tr>

@@ -38,6 +38,18 @@ class User(AbstractUser, TimeStampedModel):
 
     def __str__(self):
         return self.username
+    
+    def clean(self):
+        # owner не может иметь owner
+        if self.role == "owner" and self.owner is not None:
+            raise ValidationError("Owner cannot have an owner")
+        # worker обязан иметь owner
+        if self.role == "worker" and self.owner is None:
+            raise ValidationError("Worker must have an owner")
+    
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        super().save(*args, **kwargs)
 
 
 class Season(TimeStampedModel):
@@ -52,6 +64,7 @@ class Season(TimeStampedModel):
 
     def __str__(self):
         return f"{self.name} {self.year}"
+        
 
 
 class Field(TimeStampedModel):
@@ -224,9 +237,30 @@ class OperationResource(TimeStampedModel):
         return f"{self.operation} - {self.resource}"
 
 
+class AgronomistAssignment(models.Model):
+    owner = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name="agronomist_links"
+    )
+    agronomist = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name="client_links"
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def clean(self):
+        if self.owner.role != "owner":
+            raise ValidationError("Owner must have role 'owner'")
+
+        if self.agronomist.role != "agronomist":
+            raise ValidationError("Agronomist must have role 'agronomist'")
+
+    def __str__(self):
+        return f"{self.owner} ↔ {self.agronomist}"
+
 class ExchangeRate(models.Model):
     currency = models.CharField(max_length=10)
     rate = models.DecimalField(max_digits=10, decimal_places=2)
     updated_at = models.DateTimeField(auto_now=True)
-
-    

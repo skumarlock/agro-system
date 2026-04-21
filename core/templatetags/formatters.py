@@ -37,12 +37,30 @@ def money_short(value):
 
         if value >= 1_000_000:
             short = value / 1_000_000
-            return f"{short:.1f}".rstrip("0").rstrip(".") + " млн"
+            return f"{short:,.1f}".replace(",", " ").rstrip("0").rstrip(".") + " млн"
         elif value >= 1_000:
             short = value / 1_000
-            return f"{short:.1f}".rstrip("0").rstrip(".") + " тыс"
+            return f"{short:,.1f}".replace(",", " ").rstrip("0").rstrip(".") + " тыс"
         else:
-            return str(int(value))
+            return str(int(value)).replace(",", " ")
+
+    except:
+        return value
+
+@register.filter
+def money_short_usd(value):
+    try:
+        rate = get_usd_rate()
+        value = float(value) / float(rate)
+
+        if value >= 1_000_000:
+            short = value / 1_000_000
+            return f"{short:,.1f}".replace(",", " ").rstrip("0").rstrip(".") + "M $"
+        elif value >= 1_000:
+            short = value / 1_000
+            return f"{short:,.1f}".replace(",", " ").rstrip("0").rstrip(".") + "K $"
+        else:
+            return f"{value:,.0f}".replace(",", " ") + " $"
 
     except:
         return value
