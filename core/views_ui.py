@@ -109,6 +109,7 @@ def dashboard_view(request):
 
     if is_owner_or_admin(request.user):
         resources_by_type = defaultdict(float)
+        usd_rate = float(data["usd_rate"] or 1)
         for resource in data["dashboard"]["resources"]:
             resource_type = resource.get("type") or "other"
             resources_by_type[resource_type] += float(resource.get("cost") or 0)
@@ -139,14 +140,16 @@ def dashboard_view(request):
             "cost_by_resource": [
                 {
                     "name": resource["name"],
-                    "cost": float(resource.get("cost") or 0),
+                    "cost_local": float(resource.get("cost") or 0),
+                    "cost_usd": float(resource.get("cost") or 0) / usd_rate if usd_rate else 0,
                 }
                 for resource in data["dashboard"]["resources"]
             ],
             "cost_by_resource_type": [
                 {
                     "type": resource_type.replace("_", " ").title(),
-                    "cost": cost,
+                    "cost_local": cost,
+                    "cost_usd": cost / usd_rate if usd_rate else 0,
                 }
                 for resource_type, cost in resources_by_type.items()
             ],

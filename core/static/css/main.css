@@ -176,6 +176,10 @@
             background-color: rgba(200, 200, 200, 0.1);
         }
 
+        .dashboard-chart {
+            max-height: 220px;
+        }
+
         @media (max-width: 576px) {
             .navbar-collapse {
                 text-align: center;

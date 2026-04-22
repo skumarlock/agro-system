@@ -169,7 +169,7 @@
             <div class="card-body d-flex flex-column">
                 <p class="text-muted text-uppercase small mb-2">Cost by Resource</p>
                 <div class="flex-grow-1 position-relative" style="min-height: 280px;">
-                    <canvas id="costResourceChart"></canvas>
+                    <canvas id="costResourceChart" class="dashboard-chart"></canvas>
                 </div>
             </div>
         </div>
@@ -180,7 +180,7 @@
             <div class="card-body d-flex flex-column">
                 <p class="text-muted text-uppercase small mb-2">Cost by Type</p>
                 <div class="flex-grow-1 position-relative" style="min-height: 280px;">
-                    <canvas id="costTypeChart"></canvas>
+                    <canvas id="costTypeChart" class="dashboard-chart"></canvas>
                 </div>
             </div>
         </div>
@@ -191,7 +191,7 @@
             <div class="card-body d-flex flex-column">
                 <p class="text-muted text-uppercase small mb-2">Operations Over Time</p>
                 <div class="flex-grow-1 position-relative" style="min-height: 280px;">
-                    <canvas id="operationsChart"></canvas>
+                    <canvas id="operationsChart" class="dashboard-chart"></canvas>
                 </div>
             </div>
         </div>
@@ -278,107 +278,158 @@
 {% if is_owner and charts %}
 <script>
     const chartData = JSON.parse(document.getElementById("dashboard-chart-data").textContent);
+    const currency = "{{ currency }}";
     const isDark = document.documentElement.dataset.bsTheme === "dark";
+    const accentColor = isDark ? "#7dd3fc" : "#0f766e";
+    const accentFill = isDark ? "rgba(125, 211, 252, 0.22)" : "rgba(15, 118, 110, 0.16)";
+    const accentBorder = isDark ? "#38bdf8" : "#0f766e";
+    const secondaryColor = isDark ? "#f59e0b" : "#b45309";
+    const tertiaryColor = isDark ? "#c084fc" : "#7c3aed";
     const textColor = isDark ? "#adb5bd" : "#495057";
     const gridColor = isDark ? "#343a40" : "#dee2e6";
+    const tooltipLabel = (ctx) => ctx.raw.toLocaleString();
+    const getCostValue = (item) => currency === "usd" ? item.cost_usd : item.cost_local;
 
-    new Chart(document.getElementById("costResourceChart"), {
-        type: "bar",
-        data: {
-            labels: chartData.cost_by_resource.map((r) => r.name),
-            datasets: [{
-                data: chartData.cost_by_resource.map((r) => r.cost),
-                borderRadius: 8,
-                borderSkipped: false,
-                barThickness: 28,
-                maxBarThickness: 36,
-                backgroundColor: isDark ? "rgba(13, 110, 253, 0.72)" : "rgba(13, 110, 253, 0.58)"
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: { legend: { display: false } },
-            scales: {
-                x: {
-                    ticks: { color: textColor, maxRotation: 0, autoSkip: false },
-                    grid: { display: false }
+    if (!chartData.cost_by_resource.length) {
+        document.getElementById("costResourceChart").parentElement.innerHTML =
+            "<p class='text-muted text-center mb-0'>No data</p>";
+    } else {
+        new Chart(document.getElementById("costResourceChart"), {
+            type: "bar",
+            data: {
+                labels: chartData.cost_by_resource.map((r) => r.name),
+                datasets: [{
+                    data: chartData.cost_by_resource.map((r) => getCostValue(r)),
+                    backgroundColor: accentFill,
+                    borderColor: accentBorder,
+                    borderWidth: 1,
+                    borderRadius: 6,
+                    barThickness: 28,
+                    maxBarThickness: 36
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        callbacks: {
+                            label: tooltipLabel
+                        }
+                    }
                 },
-                y: {
-                    ticks: { color: textColor },
-                    grid: { color: gridColor },
-                    beginAtZero: true
-                }
-            }
-        }
-    });
-
-    new Chart(document.getElementById("costTypeChart"), {
-        type: "doughnut",
-        data: {
-            labels: chartData.cost_by_resource_type.map((r) => r.type),
-            datasets: [{
-                data: chartData.cost_by_resource_type.map((r) => r.cost),
-                hoverOffset: 6,
-                borderWidth: 0
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            cutout: "68%",
-            plugins: {
-                legend: {
-                    position: "bottom",
-                    labels: {
-                        color: textColor,
-                        usePointStyle: true,
-                        pointStyle: "circle",
-                        boxWidth: 10,
-                        padding: 16
+                scales: {
+                    x: {
+                        ticks: { color: textColor, maxRotation: 0, autoSkip: false },
+                        grid: { display: false }
+                    },
+                    y: {
+                        ticks: { color: textColor },
+                        grid: { color: gridColor },
+                        beginAtZero: true
                     }
                 }
             }
-        }
-    });
+        });
+    }
 
-    new Chart(document.getElementById("operationsChart"), {
-        type: "line",
-        data: {
-            labels: chartData.operations_over_time.map((o) => o.date),
-            datasets: [{
-                data: chartData.operations_over_time.map((o) => o.count),
-                tension: 0.4,
-                fill: true,
-                borderWidth: 2,
-                pointRadius: 3,
-                pointHoverRadius: 5,
-                backgroundColor: isDark ? "rgba(25, 135, 84, 0.16)" : "rgba(25, 135, 84, 0.12)",
-                borderColor: isDark ? "rgba(25, 135, 84, 0.95)" : "rgba(25, 135, 84, 0.88)",
-                pointBackgroundColor: isDark ? "rgba(25, 135, 84, 0.95)" : "rgba(25, 135, 84, 0.88)"
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: { legend: { display: false } },
-            scales: {
-                x: {
-                    ticks: { color: textColor, maxRotation: 0 },
-                    grid: { display: false }
-                },
-                y: {
-                    ticks: {
-                        color: textColor,
-                        stepSize: 1,
-                        precision: 0
+    if (!chartData.cost_by_resource_type.length) {
+        document.getElementById("costTypeChart").parentElement.innerHTML =
+            "<p class='text-muted text-center mb-0'>No data</p>";
+    } else {
+        new Chart(document.getElementById("costTypeChart"), {
+            type: "doughnut",
+            data: {
+                labels: chartData.cost_by_resource_type.map((r) => r.type),
+                datasets: [{
+                    data: chartData.cost_by_resource_type.map((r) => getCostValue(r)),
+                    hoverOffset: 6,
+                    borderWidth: 0,
+                    backgroundColor: [
+                        accentColor,
+                        secondaryColor,
+                        tertiaryColor,
+                        isDark ? "#34d399" : "#059669",
+                        isDark ? "#f87171" : "#dc2626"
+                    ]
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                cutout: "68%",
+                plugins: {
+                    tooltip: {
+                        callbacks: {
+                            label: tooltipLabel
+                        }
                     },
-                    grid: { color: gridColor },
-                    beginAtZero: true
+                    legend: {
+                        position: "bottom",
+                        labels: {
+                            color: textColor,
+                            usePointStyle: true,
+                            pointStyle: "circle",
+                            boxWidth: 10,
+                            padding: 16
+                        }
+                    }
                 }
             }
-        }
-    });
+        });
+    }
+
+    if (!chartData.operations_over_time.length) {
+        document.getElementById("operationsChart").parentElement.innerHTML =
+            "<p class='text-muted text-center mb-0'>No data</p>";
+    } else {
+        new Chart(document.getElementById("operationsChart"), {
+            type: "line",
+            data: {
+                labels: chartData.operations_over_time.map((o) => o.date),
+                datasets: [{
+                    data: chartData.operations_over_time.map((o) => o.count),
+                    tension: 0.4,
+                    fill: true,
+                    borderWidth: 2,
+                    pointRadius: 3,
+                    pointHoverRadius: 5,
+                    borderColor: accentBorder,
+                    backgroundColor: accentFill,
+                    pointBackgroundColor: accentBorder,
+                    pointBorderColor: isDark ? "#0f172a" : "#ffffff"
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        callbacks: {
+                            label: tooltipLabel
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        ticks: { color: textColor, maxRotation: 0 },
+                        grid: { display: false }
+                    },
+                    y: {
+                        ticks: {
+                            color: textColor,
+                            stepSize: 1,
+                            precision: 0
+                        },
+                        grid: { color: gridColor },
+                        beginAtZero: true
+                    }
+                }
+            }
+        });
+    }
 </script>
 {% endif %}
 {% endblock %}
