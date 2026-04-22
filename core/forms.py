@@ -9,12 +9,19 @@ class OperationForm(forms.ModelForm):
 
     class Meta:
         model = Operation
-        fields = ["field_crop", "date", "status", "performed_by"]
+        fields = [ "field_crop", "type", "date", "status", "performed_by", "description",]
         widgets = {
             "field_crop": forms.Select(attrs={"class": "form-select"}),
             "date": forms.DateInput(attrs={"type": "date", "class": "form-control"}),
             "status": forms.Select(attrs={"class": "form-select"}),
             "performed_by": forms.Select(attrs={"class": "form-select"}),
+            "description": forms.Textarea(attrs={
+                "class": "form-control",
+                "rows": 2,
+                "placeholder": "Add optional notes..."
+                
+            }),
+            "type": forms.Select(attrs={"class": "form-select"}),
         }
 
     def __init__(self, *args, **kwargs):
@@ -65,3 +72,10 @@ class WorkerRegistrationForm(forms.ModelForm):
         if commit:
             user.save()
         return user
+
+class InviteAgronomistForm(forms.Form):
+    email = forms.EmailField(
+        label="Agronomist Email",
+        widget=forms.EmailInput(attrs={"class": "form-control"}),
+    )
+    

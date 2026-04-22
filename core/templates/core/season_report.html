@@ -16,7 +16,7 @@
         <div class="card border-0 shadow-sm h-100">
             <div class="card-body">
                 <p class="text-muted text-uppercase small mb-2">Total Cost</p>
-                <h2 class="h3 mb-0">{{ report.total_cost }}</h2>
+                <h2 class="h3 mb-0">{{ report.total_cost|money }}</h2>
             </div>
         </div>
     </div>
@@ -39,17 +39,17 @@
 </div>
 
 <div class="card border-0 shadow-sm" id="resources-table">
-    <div class="card-header bg-white">
+    <div class="card-header">
         <h2 class="h5 mb-0">Resources</h2>
     </div>
     <div class="card-body p-0">
         <div class="table-responsive">
             <table class="table table-hover mb-0">
-                <thead class="table-light" style="position: sticky; top: 0; z-index: 2; background: white;">
+                <thead style="position: sticky; top: 0; z-index: 2;">
                     <tr>
                         <th style="width: 40%;">
                             <a href="?sort=name&order={{ next_order }}&{{ query_params }}#resources-table"
-                                class="text-decoration-none text-dark d-flex align-items-center gap-1">
+                                class="text-decoration-none text-body d-flex align-items-center gap-1">
                                 Name
                                 {% include "components/sort_icon.html" with current_sort=sort current_order=order column="name" %}
                             </a>
@@ -57,7 +57,7 @@
 
                         <th style="width: 25%;">
                             <a href="?sort=quantity&order={{ next_order }}&{{ query_params }}#resources-table"
-                                class="text-decoration-none text-dark d-flex justify-content-center align-items-center gap-1">
+                                class="text-decoration-none text-body d-flex justify-content-center align-items-center gap-1">
                                 Quantity
                                 {% include "components/sort_icon.html" with current_sort=sort current_order=order column="quantity" %}
                             </a>
@@ -65,7 +65,7 @@
 
                         <th style="width: 35%;">
                             <a href="?sort=cost&order={{ next_order }}&{{ query_params }}#resources-table"
-                                class="text-decoration-none text-dark d-flex justify-content-center align-items-center gap-1">
+                                class="text-decoration-none text-body d-flex justify-content-center align-items-center gap-1">
                                 Cost
                                 {% include "components/sort_icon.html" with current_sort=sort current_order=order column="cost" %}
                             </a>

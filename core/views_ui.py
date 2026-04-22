@@ -1,8 +1,11 @@
 import calendar
+from collections import Counter, defaultdict
 
 from django.contrib.auth.decorators import login_required
+from django.contrib import messages
 from django.views.decorators.http import require_POST
 from django.shortcuts import render, redirect, get_object_or_404
+from django.utils.timezone import now
 from core.services.operations import get_user_operations
 from django.core.paginator import Paginator
 from core.services.currency import update_usd_rate
@@ -15,11 +18,10 @@ from core.services import (
     get_user_field_crop_or_404,
     get_user_season_or_404,
 )
-from core.models import Operation, Season
-from core.forms import OperationForm, WorkerRegistrationForm
-from django.http import HttpResponseForbidden
-from core.forms import OperationForm
-from core.models import OperationResource, Resource
+from core.models import Operation, Season, User, AgronomistAssignment, FieldCrop
+from core.forms import OperationForm, WorkerRegistrationForm, InviteAgronomistForm
+from django.http import HttpResponseForbidden, JsonResponse
+from core.models import Resource
 
 def is_owner_or_admin(user):
     return user.role in ["owner", "admin"]
@@ -74,7 +76,7 @@ def dashboard_view(request):
 
     # выделение топ ресурса
     if resources:
-        max_cost = max(r["cost"] for r in resources)
+        max_cost = max((r["cost"] or 0) for r in resources)
         for r in resources:
             r["is_top"] = r["cost"] == max_cost
 
@@ -105,6 +107,58 @@ def dashboard_view(request):
     query_dict.pop("period", None)
     data["query_params"] = query_dict.urlencode()
 
+    if is_owner_or_admin(request.user):
+        resources_by_type = defaultdict(float)
+        for resource in data["dashboard"]["resources"]:
+            resource_type = resource.get("type") or "other"
+            resources_by_type[resource_type] += float(resource.get("cost") or 0)
+
+        operations_qs = Operation.objects.filter(field_crop__field__owner=request.user)
+
+        if period == "month":
+            if month and year:
+                operations_qs = operations_qs.filter(date__month=month, date__year=year)
+            else:
+                today = now().date()
+                operations_qs = operations_qs.filter(date__month=today.month, date__year=today.year)
+        elif period == "season":
+            if season_id:
+                operations_qs = operations_qs.filter(field_crop__season_id=season_id)
+            else:
+                today = now().date()
+                operations_qs = operations_qs.filter(
+                    field_crop__season__start_date__lte=today,
+                    field_crop__season__end_date__gte=today,
+                )
+
+        operation_counts = Counter(
+            operations_qs.order_by("date").values_list("date", flat=True)
+        )
+
+        data["charts"] = {
+            "cost_by_resource": [
+                {
+                    "name": resource["name"],
+                    "cost": float(resource.get("cost") or 0),
+                }
+                for resource in data["dashboard"]["resources"]
+            ],
+            "cost_by_resource_type": [
+                {
+                    "type": resource_type.replace("_", " ").title(),
+                    "cost": cost,
+                }
+                for resource_type, cost in resources_by_type.items()
+            ],
+            "operations_over_time": [
+                {
+                    "date": operation_date.strftime("%Y-%m-%d"),
+                    "count": count,
+                }
+                for operation_date, count in sorted(operation_counts.items())
+            ],
+        }
+
     return render(request, "core/dashboard.html", data)
 
 
@@ -119,9 +173,10 @@ def field_crop_list_view(request):
 @login_required
 def field_crop_detail_view(request, pk):
     field_crop = get_user_field_crop_or_404(request.user, pk)
+    include_finances = request.user.role != "agronomist"
 
     data = {
-        "report": get_field_crop_report(field_crop),
+        "report": get_field_crop_report(field_crop, include_finances=include_finances),
     }
 
     # --- СОРТИРОВКА ---
@@ -181,17 +236,15 @@ def update_rate_view(request):
     update_usd_rate()
     return redirect("/dashboard/")
 
-@require_POST
 @login_required
+@require_POST
 def toggle_operation_status(request, pk):
     op = get_object_or_404(Operation, pk=pk)
 
-    # безопасность
-    if request.user.role == "WORKER":
+    if request.user.role == "worker":
         if op.performed_by != request.user:
             return redirect("my-operations")
 
-    # переключение
     if op.status == "done":
         op.status = "planned"
     else:
@@ -217,34 +270,54 @@ def my_operations_view(request):
 def create_operation(request):
     if request.user.role != "owner":
         return HttpResponseForbidden("You are not allowed to create operations")
+
     if request.method == "POST":
         form = OperationForm(request.POST, user=request.user)
+
         if form.is_valid():
             operation = form.save(commit=False)
 
-            # защита
-            if operation.performed_by.role != "worker":
-                return HttpResponseForbidden("Invalid worker")
-                if not operation.performed_by:
-                    return HttpResponseForbidden("Worker not selected")
-
-                if operation.performed_by.role != "worker":
-                    return HttpResponseForbidden("Invalid worker")
-
-            operation.save()
-
+            # ✅ сначала получаем данные
             resources = request.POST.getlist("resource")
             quantities = request.POST.getlist("quantity")
 
+            # ✅ объединяем дубликаты
+            resource_map = {}
+
             for r_id, qty in zip(resources, quantities):
-                if qty:
-                    OperationResource.objects.create(
-                        operation=operation,
-                        resource_id=r_id,
-                        quantity=qty
-                    )
+                if not qty:
+                    continue
+
+                qty = float(qty)
+
+                if r_id in resource_map:
+                    resource_map[r_id] += qty
+                else:
+                    resource_map[r_id] = qty
+
+            # ✅ проверка
+            if not resource_map:
+                return HttpResponseForbidden("At least one resource required")
+
+            if not operation.performed_by:
+                return HttpResponseForbidden("Worker not selected")
+
+            if operation.performed_by.role != "worker":
+                return HttpResponseForbidden("Invalid worker")
+
+            # ✅ сначала сохраняем операцию
+            operation.save()
+
+            # ✅ потом создаём ресурсы
+            for r_id, qty in resource_map.items():
+                OperationResource.objects.create(
+                    operation=operation,
+                    resource_id=r_id,
+                    quantity=qty
+                )
 
             return redirect("my-operations")
+
     else:
         form = OperationForm(user=request.user)
 
@@ -257,12 +330,16 @@ def create_operation(request):
 def home_redirect(request):
     if request.user.role == "worker":
         return redirect("my-operations")
+
+    if request.user.role == "agronomist":
+        return redirect("agronomist-dashboard")
+
     return redirect("dashboard")
 
 @login_required
 def create_worker(request):
     if request.user.role != "owner":
-        return redirect("dashboard")
+        return HttpResponseForbidden("Access denied")
 
     if request.method == "POST":
         form = WorkerRegistrationForm(request.POST, owner=request.user)
@@ -274,4 +351,152 @@ def create_worker(request):
 
     return render(request, "core/create_worker.html", {
         "form": form
+    })
+
+@login_required
+def invite_agronomist(request):
+    if request.user.role != "owner":
+        return HttpResponseForbidden("Access denied")
+
+    if request.method == "POST":
+        form = InviteAgronomistForm(request.POST)
+        if form.is_valid():
+            email = form.cleaned_data["email"]
+
+            try:
+                agronomist = User.objects.get(email=email)
+            except User.DoesNotExist:
+                messages.error(request, "No agronomist found with this email")
+                return redirect("invite-agronomist")
+
+            if agronomist.role != "agronomist":
+                messages.error(request, "This user is not an agronomist")
+                return redirect("invite-agronomist")
+
+            AgronomistAssignment.objects.get_or_create(
+                owner=request.user,
+                agronomist=agronomist
+            )
+
+            messages.success(request, "Agronomist connected")
+            return redirect("field-crops")
+    else:
+        form = InviteAgronomistForm()
+
+    return render(request, "core/invite_agronomist.html", {"form": form})
+
+@login_required
+def my_agronomists(request):
+    if request.user.role != "owner":
+        return HttpResponseForbidden("Access denied")
+
+    links = AgronomistAssignment.objects.filter(owner=request.user)
+
+    return render(request, "core/my_agronomists.html", {
+        "links": links
+    })
+
+@login_required
+@require_POST
+def remove_agronomist(request, pk):
+    if request.user.role != "owner":
+        return HttpResponseForbidden("Access denied")
+
+    link = get_object_or_404(
+        AgronomistAssignment,
+        pk=pk,
+        owner=request.user
+    )
+    link.delete()
+
+    return JsonResponse({
+    "success": True
+})
+
+@login_required
+def agronomist_dashboard(request):
+    if request.user.role != "agronomist":
+        return redirect("dashboard")
+
+
+
+    links = AgronomistAssignment.objects.filter(agronomist=request.user)
+
+    return render(request, "core/agronomist_dashboard.html", {
+        "links": links
+    })
+
+@login_required
+def agronomist_owner_detail(request, owner_id):
+    if request.user.role != "agronomist":
+        return redirect("dashboard")
+
+    link = AgronomistAssignment.objects.filter(
+        owner_id=owner_id,
+        agronomist=request.user
+    ).first()
+
+    if not link:
+        return redirect("agronomist-dashboard")
+
+    can_view_finances = link.can_view_finances
+
+    field_crops = FieldCrop.objects.filter(field__owner_id=owner_id)\
+        .select_related("field", "crop", "season")
+
+    reports = [
+        get_field_crop_report(fc, include_finances=can_view_finances)
+        for fc in field_crops
+    ]
+
+    return render(request, "core/agronomist_owner_detail.html", {
+        "reports": reports
+    })
+
+
+@login_required
+def agronomist_field_operations(request, pk):
+    if request.user.role != "agronomist":
+        return redirect("dashboard")
+
+    field_crop = get_object_or_404(
+        FieldCrop.objects.select_related("field", "crop", "season"),
+        pk=pk,
+    )
+
+    link = AgronomistAssignment.objects.filter(
+        owner=field_crop.field.owner,
+        agronomist=request.user,
+    ).first()
+
+    if not link:
+        return redirect("agronomist-dashboard")
+
+    operations = Operation.objects.filter(
+        field_crop=field_crop
+    ).select_related("field_crop", "performed_by")
+
+    return render(request, "core/agronomist_operations.html", {
+        "field_crop": field_crop,
+        "operations": operations,
+    })
+
+@login_required
+@require_POST
+def toggle_finance_access(request, pk):
+    if request.user.role != "owner":
+        return JsonResponse({"success": False}, status=403)
+
+    link = get_object_or_404(
+        AgronomistAssignment,
+        pk=pk,
+        owner=request.user
+    )
+
+    link.can_view_finances = not link.can_view_finances
+    link.save()
+
+    return JsonResponse({
+        "success": True,
+        "can_view_finances": link.can_view_finances
     })

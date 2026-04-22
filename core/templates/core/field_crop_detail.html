@@ -43,6 +43,7 @@
                 <h2 class="h3 mb-0">{{ report.operations_count }}</h2>
             </div>
         </div>
+        {% if report.total_cost is not None %}
         <div class="card border-0 shadow-sm mb-4">
             <div class="card-body">
                 <p class="text-muted text-uppercase small mb-2">Total Cost</p>
@@ -57,6 +58,7 @@
                 <small class="text-muted">({{ report.cost_per_hectare|money }})</small>
             </div>
         </div>
+        {% endif %}
     </div>
 </div>
 
@@ -85,6 +87,7 @@
                             </a>
                         </th>
 
+                        {% if report.total_cost is not None %}
                         <th class="text-center">
                             <a href="?sort=cost&order={{ next_order }}&{{ query_params }}#resources-table"
                                 class="text-decoration-none text-body d-flex justify-content-left align-items-center gap-1">
@@ -92,6 +95,7 @@
                                 {% include "components/sort_icon.html" with current_sort=sort current_order=order column="cost" %}
                             </a>
                         </th>
+                        {% endif %}
                     </tr>
                 </thead>
                 <tbody>
@@ -99,11 +103,13 @@
                     <tr class="align-middle">
                         <td>{{ r.name }}</td>
                         <td class="text-center">{{ r.quantity }}</td>
+                        {% if report.total_cost is not None %}
                         <td class="text-body">{{ r.cost|money }}</td>
+                        {% endif %}
                     </tr>
                     {% empty %}
                     <tr class="align-middle">
-                        <td colspan="3" class="text-center text-muted">No resources found</td>
+                        <td colspan="{% if report.total_cost is not None %}3{% else %}2{% endif %}" class="text-center text-muted">No resources found</td>
                     </tr>
                     {% endfor %}
                 </tbody>

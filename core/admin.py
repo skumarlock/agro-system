@@ -2,7 +2,7 @@ from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
 from .models import (
     User, Field, Crop, Season,
-    FieldCrop, Operation, Resource, OperationResource
+    FieldCrop, Operation, Resource, OperationResource, AgronomistAssignment
 )
 
 # =====================
@@ -105,3 +105,9 @@ class ResourceAdmin(admin.ModelAdmin):
 @admin.register(OperationResource)
 class OperationResourceAdmin(admin.ModelAdmin):
     list_display = ("operation", "resource", "quantity")
+
+
+@admin.register(AgronomistAssignment)
+class AgronomistAssignmentAdmin(admin.ModelAdmin):
+    list_display = ("owner", "agronomist", "created_at")
+    list_filter = ("owner", "agronomist")

@@ -13,28 +13,41 @@ from core.services.field_crop import (
 )
 
 
-def get_field_crop_report(field_crop: FieldCrop) -> dict:
+def get_field_crop_report(field_crop: FieldCrop, include_finances=True) -> dict:
+    resources = get_field_crop_resources(field_crop)
+    total_cost = calculate_field_crop_total_cost(field_crop)
+    cost_per_hectare = calculate_cost_per_hectare(field_crop)
+
+    if not include_finances:
+        total_cost = None
+        cost_per_hectare = None
+
+        for r in resources:
+            r["cost"] = None
+            r["total"] = None
     return {
-        "field_crop_id": field_crop.id,
-        "field": {
-            "id": field_crop.field.id,
-            "name": field_crop.field.name,
-        },
-        "crop": {
-            "id": field_crop.crop.id,
-            "name": field_crop.crop.name,
-        },
-        "season": {
-            "id": field_crop.season.id,
-            "name": field_crop.season.name,
-            "year": field_crop.season.year,
-        },
-        "status": field_crop.status,
-        "operations_count": get_field_crop_operations_count(field_crop),
-        "total_cost": calculate_field_crop_total_cost(field_crop),
-        "cost_per_hectare": calculate_cost_per_hectare(field_crop),
-        "resources": get_field_crop_resources(field_crop),
-    }
+    "field_crop_id": field_crop.id,
+    "field": {
+        "id": field_crop.field.id,
+        "name": field_crop.field.name,
+    },
+    "crop": {
+        "id": field_crop.crop.id,
+        "name": field_crop.crop.name,
+    },
+    "season": {
+        "id": field_crop.season.id,
+        "name": field_crop.season.name,
+        "year": field_crop.season.year,
+    },
+    "status": field_crop.status,
+    "operations_count": get_field_crop_operations_count(field_crop),
+
+    "total_cost": total_cost,
+    "cost_per_hectare": cost_per_hectare,
+
+    "resources": resources,
+}
 
 
 def get_season_report(season: Season, user: User) -> dict:
@@ -58,4 +71,4 @@ def get_field_crops_reports(user):
         .order_by("id")
     )
 
-    return [get_field_crop_report(fc) for fc in field_crops]
+    return [get_field_crop_report(fc, include_finances=True) for fc in field_crops]

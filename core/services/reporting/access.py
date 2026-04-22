@@ -9,7 +9,7 @@ def get_user_field_crop_or_404(user: User, pk: int) -> FieldCrop:
     if user.role == "owner":
         qs = qs.filter(field__owner=user)
     elif user.role == "agronomist":
-        qs = qs.filter(field__owner=user.owner) 
+        qs = qs.filter(field__owner__agronomist_links__agronomist=user)
     else:
         qs = qs.filter(operations__performed_by=user)
 
@@ -22,7 +22,7 @@ def get_user_season_or_404(user: User, pk: int) -> Season:
     if user.role == "owner":
         qs = qs.filter(field_crops__field__owner=user)
     elif user.role == "agronomist":
-        qs = qs.filter(field_crops__field__owner=user.owner)
+        qs = qs.filter(field_crops__field__owner__agronomist_links__agronomist=user)
     else:
         qs = qs.filter(
             field_crops__operations__performed_by=user

@@ -86,7 +86,7 @@ def get_user_operations_count(user: User, period="all", month=None, year=None, s
 def get_user_resources_summary(user: User, period="all", month=None, year=None, season_id=None):
     qs = get_base_queryset(user, period, month, year, season_id)
 
-    queryset = qs.values("resource__name").annotate(
+    queryset = qs.values("resource__name", "resource__type").annotate(
         total_quantity=Sum("quantity"),
         total_cost=Sum(
             ExpressionWrapper(
@@ -102,6 +102,7 @@ def get_user_resources_summary(user: User, period="all", month=None, year=None, 
     return [
         {
             "name": item["resource__name"],
+            "type": item["resource__type"],
             "quantity": item["total_quantity"] or ZERO_DECIMAL,
             "cost": item["total_cost"] or ZERO_DECIMAL,
         }

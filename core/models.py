@@ -249,6 +249,7 @@ class AgronomistAssignment(models.Model):
         related_name="client_links"
     )
     created_at = models.DateTimeField(auto_now_add=True)
+    can_view_finances = models.BooleanField(default=False)
 
     def clean(self):
         if self.owner.role != "owner":

@@ -1,0 +1,141 @@
+{% extends "base.html" %}
+
+{% block title %}My Agronomists{% endblock %}
+
+{% block content %}
+
+<script>
+    function getCookie(name) {
+        let cookieValue = null;
+
+        if (document.cookie && document.cookie !== "") {
+            const cookies = document.cookie.split(";");
+
+            for (const cookie of cookies) {
+                const trimmedCookie = cookie.trim();
+
+                if (trimmedCookie.startsWith(name + "=")) {
+                    cookieValue = decodeURIComponent(trimmedCookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+
+        return cookieValue;
+    }
+
+    document.addEventListener("click", function (e) {
+        const btn = e.target.closest(".toggle-finance");
+        const disconnectLink = e.target.closest(".remove-agronomist");
+
+        if (!btn && !disconnectLink) return;
+
+        if (btn) {
+            const id = btn.dataset.id;
+
+            fetch(`/agronomists/${id}/toggle-finance/`, {
+                method: "POST",
+                headers: {
+                    "X-CSRFToken": getCookie("csrftoken"),
+                }
+            })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success) {
+                        const row = btn.closest("tr");
+                        const badge = row.querySelector(".finance-badge");
+                        if (!badge) return;
+
+                        badge.textContent = data.can_view_finances ? "Allowed" : "Restricted";
+                        badge.className = data.can_view_finances
+                            ? "badge bg-success finance-badge"
+                            : "badge bg-secondary finance-badge";
+                    }
+                });
+            return;
+        }
+
+        e.preventDefault();
+
+        fetch(disconnectLink.href, {
+            method: "POST",
+            headers: {
+                "X-CSRFToken": getCookie("csrftoken"),
+            }
+        })
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    const row = disconnectLink.closest("tr");
+                    if (row) {
+                        row.remove();
+                    }
+                }
+            });
+    });
+</script>
+
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h1 class="h3 mb-1">My Agronomists</h1>
+        <p class="text-muted mb-0">Manage your agronomy consultants</p>
+    </div>
+
+    <a href="{% url 'invite-agronomist' %}" class="btn btn-sm btn-outline-secondary">
+        + Add Agronomist
+    </a>
+</div>
+
+<div class="card border-0 shadow-sm">
+    <div class="table-responsive">
+        <table class="table table-hover mb-0 align-middle">
+            <thead>
+                <tr>
+                    <th>Username</th>
+                    <th>Email</th>
+                    <th>Connected Since</th>
+                    <th>Finance Access</th>
+                    <th></th> <!-- для кнопок -->
+                </tr>
+            </thead>
+            <tbody>
+                {% for link in links %}
+                <tr>
+                    <td>{{ link.agronomist.username }}</td>
+                    <td>{{ link.agronomist.email }}</td>
+                    <td>{{ link.created_at|date:"M d, Y" }}</td>
+
+                    <td>
+                        {% if link.can_view_finances %}
+                        <span class="badge bg-success finance-badge">Allowed</span>
+                        {% else %}
+                        <span class="badge bg-secondary finance-badge">Restricted</span>
+                        {% endif %}
+                    </td>
+
+                    <td class="text-end">
+
+                        <button class="toggle-finance btn btn-sm btn-outline-secondary" data-id="{{ link.id }}">
+                            Finance
+                        </button>
+
+                        <a href="{% url 'remove-agronomist' link.id %}" class="remove-agronomist btn btn-sm btn-outline-danger">
+                            Disconnect
+                        </a>
+
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="4" class="text-center text-muted py-4">
+                        No agronomists connected
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+{% endblock %}

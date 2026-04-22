@@ -3,14 +3,33 @@
 {% block title %}Field Crops | Agro System{% endblock %}
 
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-4">
+<div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+
+    <!-- Левая часть -->
     <div>
         <h1 class="h3 mb-1">Field Crops</h1>
         <p class="text-muted mb-0">List of field crops available for the current user.</p>
-        <a href="{% url 'create-worker' %}" class="btn btn-sm btn-outline-secondary">
-            + New Worker
-        </a>
     </div>
+
+    <!-- Правая часть (действия) -->
+    <div class="d-flex gap-2">
+
+        <!-- Worker -->
+        <a href="{% url 'create-worker' %}" class="btn btn-sm btn-outline-secondary">
+            + Worker
+        </a>
+
+        <!-- Agronomist -->
+        <a href="{% url 'invite-agronomist' %}" class="btn btn-sm btn-outline-secondary">
+            + Agronomist
+        </a>
+
+        <a href="{% url 'my-agronomists' %}" class="btn btn-sm btn-outline-secondary">
+            My Agronomists
+        </a>
+
+    </div>
+
 </div>
 
 <div class="card border-0 shadow-sm">

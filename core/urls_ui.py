@@ -9,7 +9,14 @@ from core.views_ui import (
     toggle_operation_status,
     create_operation,
     home_redirect,
-    create_worker
+    create_worker,
+    invite_agronomist,
+    my_agronomists,
+    remove_agronomist,
+    agronomist_dashboard,
+    agronomist_owner_detail,
+    agronomist_field_operations,
+    toggle_finance_access,
 )
 
 urlpatterns = [
@@ -23,4 +30,12 @@ urlpatterns = [
     path("operations/create/", create_operation, name="create-operation"),
     path("", home_redirect, name="home"),
     path("workers/create/", create_worker, name="create-worker"),
+    path("agronomists/invite/", invite_agronomist, name="invite-agronomist"),
+    path("agronomists/", my_agronomists, name="my-agronomists"),
+    path("agronomists/<int:pk>/remove/", remove_agronomist, name="remove-agronomist"),
+    path("agronomist/", agronomist_dashboard, name="agronomist-dashboard"),
+    path("agronomist/owner/<int:owner_id>/", agronomist_owner_detail, name="agronomist-owner-detail"),
+    path("agronomist/field-crops/<int:pk>/operations/", agronomist_field_operations, name="agronomist-field-operations"),
+    path("agronomists/<int:pk>/toggle-finance/", toggle_finance_access, name="toggle-finance-access"),
+    
 ]

@@ -2,6 +2,15 @@
 
 {% block content %}
 
+<script>
+    document.addEventListener("input", function (e) {
+        if (e.target.tagName === "TEXTAREA") {
+            e.target.style.height = "auto";
+            e.target.style.height = (e.target.scrollHeight) + "px";
+        }
+    });
+</script>
+
 <div class="row justify-content-center">
     <div class="col-lg-8">
 
@@ -23,6 +32,10 @@
                         <label class="form-label">Field</label>
                         {{ form.field_crop }}
                     </div>
+                    <div class="mb-3">
+                        <label class="form-label">Operation Type</label>
+                        {{ form.type }}
+                    </div>
 
                     <div class="row">
                         <div class="col-md-6 mb-3">
@@ -39,6 +52,19 @@
                             {{ form.performed_by }}
                         </div>
                     </div>
+                </div>
+            </div>
+            <!-- DESCRIPTION -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-body">
+                    <h5 class="mb-3">Details</h5>
+
+                    <div class="mb-0">
+                        <label class="form-label">Description</label>
+                        {{ form.description }}
+                        <small class="text-muted">Optional notes for this operation</small>
+                    </div>
+
                 </div>
             </div>
 

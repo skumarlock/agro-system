@@ -243,3 +243,37 @@
         h5 {
             font-weight: 600;
         }
+
+        /* Operation Type styling */
+        select.form-select {
+            border-radius: 10px;
+            padding: 10px 12px;
+            font-weight: 500;
+            transition: all 0.2s ease;
+        }
+
+        select.form-select:focus {
+            border-color: #6c757d;
+            box-shadow: 0 0 0 0.15rem rgba(108, 117, 125, 0.15);
+        }
+
+        /* Hover эффект */
+        select.form-select:hover {
+            border-color: #adb5bd;
+        }
+
+        .form-label {
+            font-weight: 500;
+            margin-bottom: 6px;
+        }
+
+        textarea.form-control {
+            border-radius: 10px;
+            resize: none;
+            transition: all 0.2s ease;
+        }
+
+        textarea.form-control:focus {
+            border-color: #6c757d;
+            box-shadow: 0 0 0 0.15rem rgba(108, 117, 125, 0.15);
+        }
