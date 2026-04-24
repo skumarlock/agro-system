@@ -115,6 +115,9 @@
                 </button>
             </div>
 
+            <input type="hidden" name="next" value="{{ next }}">
+            <a href="{% url 'create-operation' %}?next={{ request.path }}"></a>
+
         </form>
 
     </div>

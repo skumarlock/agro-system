@@ -158,6 +158,16 @@
 
         <button class="btn btn-sm btn-outline-success">Apply</button>
     </form>
+    
+    <div class="vr"></div>
+
+        <form class="d-flex align-items-center gap-2 p-2 rounded period-form">
+            <a href="{% url 'create-operation' %}" class="btn btn-sm btn-outline-secondary px-3">
+                + New Operation
+            </a>
+    </form>
+
+
 
 </div>
 
@@ -170,6 +180,13 @@
                 <p class="text-muted text-uppercase small mb-2">Cost by Resource</p>
                 <div class="flex-grow-1 position-relative" style="min-height: 280px;">
                     <canvas id="costResourceChart" class="dashboard-chart"></canvas>
+                    <div class="mt-3 d-flex justify-content-between align-items-start">
+    <div id="resourceTopList"></div>
+
+    <button class="btn btn-sm btn-outline-secondary">
+        View all
+    </button>
+</div>
                 </div>
             </div>
         </div>
@@ -212,9 +229,6 @@
                 🔄 Update rate
             </a>
             
-            <a href="{% url 'create-operation' %}" class="btn btn-sm btn-outline-secondary px-3">
-                + New Operation
-            </a>
             
         </div>
     </div>
@@ -297,7 +311,7 @@
         new Chart(document.getElementById("costResourceChart"), {
             type: "bar",
             data: {
-                labels: chartData.cost_by_resource.map((r) => r.name),
+                labels: chartData.cost_by_resource.map((_, i) => (i + 1).toString()),
                 datasets: [{
                     data: chartData.cost_by_resource.map((r) => getCostValue(r)),
                     backgroundColor: accentFill,
@@ -315,7 +329,10 @@
                     legend: { display: false },
                     tooltip: {
                         callbacks: {
-                            label: tooltipLabel
+                            label: function(ctx) {
+                                const item = chartData.cost_by_resource[ctx.dataIndex];
+                                return item.name + ": " + ctx.raw.toLocaleString();
+                            }
                         }
                     }
                 },
@@ -430,6 +447,28 @@
             }
         });
     }
+    function renderTopResources() {
+    const container = document.getElementById("resourceTopList");
+    container.innerHTML = "";
+
+    const top = chartData.cost_by_resource.slice(0, 6);
+
+    top.forEach((r, i) => {
+        const row = document.createElement("div");
+
+        row.className = "mb-0";
+        row.style.lineHeight = "1.3";
+        row.style.fontSize = "0.75rem";
+
+        row.innerHTML = `
+            <span class="text-muted" style="font-size: 0.8rem;">${i + 1}</span>
+            <span class="ms-2 text-muted" style="font-size: 0.8rem;">${r.name}</span>
+        `;
+
+        container.appendChild(row);
+    });
+}
+renderTopResources();
 </script>
 {% endif %}
 {% endblock %}

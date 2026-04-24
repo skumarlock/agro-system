@@ -18,13 +18,7 @@ from django.contrib import admin
 from django.urls import include, path
 from django.shortcuts import redirect
 
-# def root_view(request):
-#     if request.user.is_authenticated:
-#         return redirect('home')
-#     return redirect('login')
-
 urlpatterns = [
-    # path('', root_view),
     path('admin/', admin.site.urls),
     path('', include('core.urls_ui')),   # UI
     path('api/', include('core.urls')),  # API

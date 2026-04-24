@@ -18,7 +18,7 @@ from core.services import (
     get_user_field_crop_or_404,
     get_user_season_or_404,
 )
-from core.models import Operation, Season, User, AgronomistAssignment, FieldCrop
+from core.models import Operation, Season, User, AgronomistAssignment, FieldCrop, OperationResource
 from core.forms import OperationForm, WorkerRegistrationForm, InviteAgronomistForm
 from django.http import HttpResponseForbidden, JsonResponse
 from core.models import Resource
@@ -71,6 +71,21 @@ def dashboard_view(request):
     order = request.GET.get("order", "asc")
 
     resources = data["dashboard"]["resources"]
+
+    # сортируем по убыванию стоимости
+    resources = sorted(resources, key=lambda r: r.get("cost") or 0, reverse=True)
+
+    top = resources[:5]
+    other = resources[5:]
+
+    if other:
+        other_sum = sum((r.get("cost") or 0) for r in other)
+
+        top.append({
+            "name": "Other",
+            "cost": other_sum,
+            "type": "other"
+        })
 
     resources, next_order = sort_resources(resources, sort, order)
 
@@ -143,7 +158,7 @@ def dashboard_view(request):
                     "cost_local": float(resource.get("cost") or 0),
                     "cost_usd": float(resource.get("cost") or 0) / usd_rate if usd_rate else 0,
                 }
-                for resource in data["dashboard"]["resources"]
+                for resource in top
             ],
             "cost_by_resource_type": [
                 {
@@ -319,7 +334,23 @@ def create_operation(request):
                     quantity=qty
                 )
 
-            return redirect("my-operations")
+            def get_redirect_for_user(user):
+                if user.role == "owner":
+                    return "dashboard"
+                elif user.role == "worker":
+                    return "my-operations"
+                elif user.role == "agronomist":
+                    return "agronomist-dashboard"
+                return "dashboard"
+
+            # 🔥 сначала next
+            next_url = request.POST.get("next") or request.GET.get("next")
+
+            if next_url:
+                return redirect(next_url)
+
+            # 🔥 fallback
+            return redirect(get_redirect_for_user(request.user))
 
     else:
         form = OperationForm(user=request.user)
