@@ -29,10 +29,14 @@ class OperationForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
 
         if user:
-            self.fields["performed_by"].queryset = User.objects.filter(
-                role="worker",
-                owner=user
-            )
+            if user.role == "agronomist":
+                from core.models import AgronomistAssignment
+                owner_ids = AgronomistAssignment.objects.filter(agronomist=user).values_list("owner_id", flat=True)
+                self.fields["performed_by"].queryset = User.objects.filter(role="worker", owner_id__in=owner_ids)
+                self.fields["field_crop"].queryset = self.fields["field_crop"].queryset.filter(field__owner_id__in=owner_ids)
+            else:
+                self.fields["performed_by"].queryset = User.objects.filter(role="worker", owner=user)
+                self.fields["field_crop"].queryset = self.fields["field_crop"].queryset.filter(field__owner=user)
 
 class WorkerRegistrationForm(forms.ModelForm):
     password = forms.CharField(

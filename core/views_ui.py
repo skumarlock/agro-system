@@ -1,4 +1,6 @@
 import calendar
+import json
+from datetime import timedelta
 from collections import Counter, defaultdict
 
 from django.contrib.auth.decorators import login_required
@@ -18,7 +20,7 @@ from core.services import (
     get_user_field_crop_or_404,
     get_user_season_or_404,
 )
-from core.models import Operation, Season, User, AgronomistAssignment, FieldCrop, OperationResource
+from core.models import Operation, Season, User, AgronomistAssignment, FieldCrop, OperationResource, Field
 from core.forms import OperationForm, WorkerRegistrationForm, InviteAgronomistForm
 from django.http import HttpResponseForbidden, JsonResponse
 from core.models import Resource
@@ -75,12 +77,11 @@ def dashboard_view(request):
     # сортируем по убыванию стоимости
     resources = sorted(resources, key=lambda r: r.get("cost") or 0, reverse=True)
 
-    top = resources[:5]
-    other = resources[5:]
+    top = resources[:6]
+    other = resources[6:]
 
     if other:
         other_sum = sum((r.get("cost") or 0) for r in other)
-
         top.append({
             "name": "Other",
             "cost": other_sum,
@@ -147,9 +148,25 @@ def dashboard_view(request):
                     field_crop__season__end_date__gte=today,
                 )
 
-        operation_counts = Counter(
-            operations_qs.order_by("date").values_list("date", flat=True)
-        )
+        dates_list = list(operations_qs.order_by("date").values_list("date", flat=True))
+
+        if dates_list:
+            delta_days = (dates_list[-1] - dates_list[0]).days
+            if delta_days > 365:
+                grouped = [d.replace(day=1) for d in dates_list]
+                fmt = "%Y-%m"
+            elif delta_days >= 90:
+                grouped = [d - timedelta(days=d.weekday()) for d in dates_list]
+                fmt = "%Y-%m-%d"
+            else:
+                grouped = dates_list
+                fmt = "%Y-%m-%d"
+            ops_over_time = [
+                {"date": d.strftime(fmt), "count": c}
+                for d, c in sorted(Counter(grouped).items())
+            ]
+        else:
+            ops_over_time = []
 
         data["charts"] = {
             "cost_by_resource": [
@@ -168,13 +185,7 @@ def dashboard_view(request):
                 }
                 for resource_type, cost in resources_by_type.items()
             ],
-            "operations_over_time": [
-                {
-                    "date": operation_date.strftime("%Y-%m-%d"),
-                    "count": count,
-                }
-                for operation_date, count in sorted(operation_counts.items())
-            ],
+            "operations_over_time": ops_over_time,
         }
 
     return render(request, "core/dashboard.html", data)
@@ -286,53 +297,68 @@ def my_operations_view(request):
 
 @login_required
 def create_operation(request):
-    if request.user.role != "owner":
+    if request.user.role not in ["owner", "agronomist"]:
         return HttpResponseForbidden("You are not allowed to create operations")
 
     if request.method == "POST":
         form = OperationForm(request.POST, user=request.user)
 
         if form.is_valid():
-            operation = form.save(commit=False)
+            base_op = form.save(commit=False)
 
-            # ✅ сначала получаем данные
             resources = request.POST.getlist("resource")
             quantities = request.POST.getlist("quantity")
 
-            # ✅ объединяем дубликаты
             resource_map = {}
-
             for r_id, qty in zip(resources, quantities):
                 if not qty:
                     continue
-
                 qty = float(qty)
+                resource_map[r_id] = resource_map.get(r_id, 0) + qty
 
-                if r_id in resource_map:
-                    resource_map[r_id] += qty
-                else:
-                    resource_map[r_id] = qty
-
-            # ✅ проверка
             if not resource_map:
                 return HttpResponseForbidden("At least one resource required")
 
-            if not operation.performed_by:
+            if not base_op.performed_by:
                 return HttpResponseForbidden("Worker not selected")
 
-            if operation.performed_by.role != "worker":
+            if base_op.performed_by.role != "worker":
                 return HttpResponseForbidden("Invalid worker")
 
-            # ✅ сначала сохраняем операцию
-            operation.save()
+            # Build schedule: JSON list wins over single date
+            schedule_json = request.POST.get("schedule")
+            if schedule_json:
+                try:
+                    schedule = json.loads(schedule_json)
+                except (ValueError, TypeError):
+                    schedule = [{"date": form.cleaned_data["date"].isoformat()}]
+            else:
+                schedule = [{"date": form.cleaned_data["date"].isoformat()}]
 
-            # ✅ потом создаём ресурсы
-            for r_id, qty in resource_map.items():
-                OperationResource.objects.create(
-                    operation=operation,
-                    resource_id=r_id,
-                    quantity=qty
+            today = now().date()
+            for item in schedule:
+                from datetime import date as date_cls
+                item_date = date_cls.fromisoformat(item["date"])
+                # Auto-status: past dates → done
+                op_status = base_op.status
+                if op_status == "planned" and item_date < today:
+                    op_status = "done"
+
+                op = Operation.objects.create(
+                    field_crop=base_op.field_crop,
+                    type=base_op.type,
+                    date=item_date,
+                    status=op_status,
+                    performed_by=base_op.performed_by,
+                    description=base_op.description,
                 )
+                # Clone resources to every operation
+                for r_id, qty in resource_map.items():
+                    OperationResource.objects.create(
+                        operation=op,
+                        resource_id=r_id,
+                        quantity=qty,
+                    )
 
             def get_redirect_for_user(user):
                 if user.role == "owner":
@@ -343,21 +369,48 @@ def create_operation(request):
                     return "agronomist-dashboard"
                 return "dashboard"
 
-            # 🔥 сначала next
             next_url = request.POST.get("next") or request.GET.get("next")
-
             if next_url:
                 return redirect(next_url)
-
-            # 🔥 fallback
             return redirect(get_redirect_for_user(request.user))
 
     else:
         form = OperationForm(user=request.user)
 
+    # Cascade data for Field → Season → FieldCrop
+    if request.user.role == "agronomist":
+        owner_ids = AgronomistAssignment.objects.filter(
+            agronomist=request.user
+        ).values_list("owner_id", flat=True)
+        fields_qs = Field.objects.filter(owner_id__in=owner_ids)
+        fc_qs = FieldCrop.objects.filter(field__owner_id__in=owner_ids).select_related("field", "season", "crop")
+    else:
+        fields_qs = Field.objects.filter(owner=request.user)
+        fc_qs = FieldCrop.objects.filter(field__owner=request.user).select_related("field", "season", "crop")
+
+    seasons_qs = Season.objects.all()
+
+    fields_data = [{"id": f.id, "name": f.name} for f in fields_qs]
+    field_crops_data = [
+        {"id": fc.id, "field_id": fc.field_id, "season_id": fc.season_id, "name": fc.crop.name}
+        for fc in fc_qs
+    ]
+    seasons_data = [
+        {
+            "id": s.id,
+            "name": str(s),
+            "start_date": s.start_date.isoformat(),
+            "end_date": s.end_date.isoformat(),
+        }
+        for s in seasons_qs
+    ]
+
     return render(request, "core/create_operation.html", {
         "form": form,
-        "resources": Resource.objects.all()
+        "resources": Resource.objects.all(),
+        "fields": fields_data,
+        "field_crops": field_crops_data,
+        "seasons": seasons_data,
     })
 
 @login_required

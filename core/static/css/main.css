@@ -281,3 +281,14 @@
             border-color: #6c757d;
             box-shadow: 0 0 0 0.15rem rgba(108, 117, 125, 0.15);
         }
+
+        /* Fix: dropdown arrow overlapping text */
+        .form-select {
+            padding-right: 3.5rem;
+            background-position: right 1.2rem center;
+        }
+
+        .dashboard-chart {
+            height: 240px;
+            width: 100% !important;
+        }
