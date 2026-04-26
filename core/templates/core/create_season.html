@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+
+{% block title %}Create Season | Agro System{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-5">
+        <div class="mb-4">
+            <h2 class="mb-1">New Season</h2>
+            <p class="text-muted mb-0">Define a growing season for your fields.</p>
+        </div>
+
+        <!-- Quick presets -->
+        <div class="mb-3">
+            <label class="form-label fw-semibold text-muted small">Quick Preset</label>
+            <div class="d-flex flex-wrap gap-2" id="presets">
+                <button type="button" class="btn btn-sm btn-outline-success"
+                        onclick="applyPreset('Spring', '03-01', '05-31')">🌸 Spring</button>
+                <button type="button" class="btn btn-sm btn-outline-warning"
+                        onclick="applyPreset('Summer', '06-01', '08-31')">☀️ Summer</button>
+                <button type="button" class="btn btn-sm btn-outline-warning"
+                        onclick="applyPreset('Autumn', '09-01', '11-30')">🍂 Autumn</button>
+                <button type="button" class="btn btn-sm btn-outline-primary"
+                        onclick="applyPreset('Winter', '12-01', '02-28')">❄️ Winter</button>
+                <button type="button" class="btn btn-sm btn-outline-secondary"
+                        onclick="clearPreset()">✏️ Custom</button>
+            </div>
+        </div>
+
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <form method="post">
+                    {% csrf_token %}
+                    <input type="hidden" name="next" value="{{ next }}">
+
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Season Name</label>
+                        {{ form.name }}
+                        {% if form.name.errors %}
+                        <div class="text-danger small mt-1">{{ form.name.errors }}</div>
+                        {% endif %}
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label fw-semibold">Start Date</label>
+                            {{ form.start_date }}
+                            {% if form.start_date.errors %}
+                            <div class="text-danger small mt-1">{{ form.start_date.errors }}</div>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label fw-semibold">End Date</label>
+                            {{ form.end_date }}
+                            {% if form.end_date.errors %}
+                            <div class="text-danger small mt-1">{{ form.end_date.errors }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <p class="text-muted small mb-3">
+                        ℹ️ Year is auto-derived from the start date.
+                    </p>
+
+                    {% if form.non_field_errors %}
+                    <div class="alert alert-danger py-2">{{ form.non_field_errors }}</div>
+                    {% endif %}
+
+                    <div class="d-flex justify-content-between mt-2">
+                        <a href="{% url 'fields-list' %}" class="btn btn-outline-secondary">Cancel</a>
+                        <button type="submit" class="btn btn-primary px-4">Create Season</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function applyPreset(name, startMMDD, endMMDD) {
+    const year = new Date().getFullYear();
+    document.getElementById('id_name').value = name;
+    document.getElementById('id_start_date').value = `${year}-${startMMDD}`;
+
+    // Winter: end date is next year for Dec start
+    let endYear = startMMDD.startsWith('12') ? year + 1 : year;
+    document.getElementById('id_end_date').value = `${endYear}-${endMMDD}`;
+
+    // Highlight active preset button
+    document.querySelectorAll('#presets button').forEach(b => b.classList.remove('active'));
+    event.target.classList.add('active');
+}
+
+function clearPreset() {
+    document.getElementById('id_name').value = '';
+    document.getElementById('id_start_date').value = '';
+    document.getElementById('id_end_date').value = '';
+    document.querySelectorAll('#presets button').forEach(b => b.classList.remove('active'));
+}
+</script>
+{% endblock %}

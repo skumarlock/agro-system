@@ -20,38 +20,69 @@
 <body>
     <nav class="navbar navbar-expand-lg fixed-top app-navbar">
         <div class="container">
-            <a class="navbar-brand fw-semibold" href="{% url 'dashboard' %}">Agro System</a>
-            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav"
-                aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+
+            <!-- Brand → role-aware home -->
+            {% if user.is_authenticated %}
+                {% if user.role == "worker" %}
+                    <a class="navbar-brand fw-semibold" href="{% url 'my-operations' %}">🌾 Agro</a>
+                {% elif user.role == "agronomist" %}
+                    <a class="navbar-brand fw-semibold" href="{% url 'agronomist-dashboard' %}">🌾 Agro</a>
+                {% else %}
+                    <a class="navbar-brand fw-semibold" href="{% url 'dashboard' %}">🌾 Agro</a>
+                {% endif %}
+            {% else %}
+                <a class="navbar-brand fw-semibold" href="/">🌾 Agro</a>
+            {% endif %}
+
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse"
+                    data-bs-target="#navbarNav" aria-controls="navbarNav"
+                    aria-expanded="false" aria-label="Toggle navigation">
                 <span class="navbar-toggler-icon"></span>
             </button>
+
             <div class="collapse navbar-collapse" id="navbarNav">
                 <ul class="navbar-nav me-auto">
+
                     {% if user.role == "owner" or user.role == "admin" %}
                     <li class="nav-item">
                         <a class="nav-link" href="{% url 'dashboard' %}">Dashboard</a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="{% url 'field-crops' %}">FieldCrops</a>
+                        <a class="nav-link" href="{% url 'fields-list' %}">Fields</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link fw-semibold" href="{% url 'create-operation' %}">+ Operation</a>
                     </li>
                     {% endif %}
-                    {% if user.is_authenticated and user.role == "worker" %}
+
+                    {% if user.role == "agronomist" %}
+                    <li class="nav-item">
+                        <a class="nav-link" href="{% url 'agronomist-dashboard' %}">Dashboard</a>
+                    </li>
+                    {% endif %}
+
+                    {% if user.role == "worker" %}
                     <li class="nav-item">
                         <a class="nav-link" href="{% url 'my-operations' %}">My Tasks</a>
                     </li>
                     {% endif %}
+
                 </ul>
+
                 {% if user.is_authenticated %}
-                <div class="navbar-actions d-flex gap-2">
+                <div class="navbar-actions d-flex align-items-center gap-2">
+                    <span class="text-muted small d-none d-lg-block">
+                        {{ user.username }}
+                        <span class="badge bg-secondary ms-1">{{ user.role|title }}</span>
+                    </span>
                     <form method="post" action="{% url 'logout' %}">
                         {% csrf_token %}
                         <button type="submit" class="btn btn-outline-light btn-sm">Logout</button>
                     </form>
-                    <button type="button" id="theme-toggle" class="btn btn-sm ms-2 border-0">
+                    <button type="button" id="theme-toggle" class="btn btn-sm ms-1 border-0">
                         <img id="theme-icon" src="{% static 'icons/icons8-dark-mode-100.png' %}" width="18">
                     </button>
                 </div>
-
                 {% endif %}
             </div>
         </div>
@@ -59,6 +90,16 @@
 
     <main class="py-4">
         <div class="container">
+            {% if messages %}
+            <div class="mb-3">
+                {% for msg in messages %}
+                <div class="alert alert-{{ msg.tags|default:'info' }} alert-dismissible fade show" role="alert">
+                    {{ msg }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
             {% block content %}{% endblock %}
         </div>
     </main>

@@ -1,0 +1,202 @@
+{% extends "base.html" %}
+
+{% block title %}{{ field.name }} | Agro System{% endblock %}
+
+{% block content %}
+
+<!-- Header -->
+<div class="d-flex justify-content-between align-items-start mb-4 flex-wrap gap-2">
+    <div>
+        <nav aria-label="breadcrumb" class="mb-1">
+            <ol class="breadcrumb mb-0 small">
+                <li class="breadcrumb-item"><a href="{% url 'fields-list' %}">Fields</a></li>
+                <li class="breadcrumb-item active">{{ field.name }}</li>
+            </ol>
+        </nav>
+        <h1 class="h3 mb-0">{{ field.name }}</h1>
+        <p class="text-muted mb-0 small">📍 {{ field.location }} &nbsp;·&nbsp; 📐 {{ field.area }} ha
+            {% if field.soil_type %}&nbsp;·&nbsp; 🪨 {{ field.soil_type }}{% endif %}
+        </p>
+    </div>
+    {% if is_owner %}
+    <div class="d-flex gap-2">
+        <a href="{% url 'create-season' %}?next={{ request.path }}" class="btn btn-sm btn-outline-primary">+ Season</a>
+        <a href="{% url 'create-operation' %}?field_id={{ field.pk }}" class="btn btn-sm btn-success">+ Operation</a>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Season tabs -->
+<ul class="nav nav-tabs mb-3" id="seasonTabs">
+    {% if active_seasons %}
+    <li class="nav-item dropdown">
+        <a class="nav-link dropdown-toggle {% if selected_season in active_seasons %}active{% endif %}"
+           data-bs-toggle="dropdown" href="#">🟢 Active</a>
+        <ul class="dropdown-menu">
+            {% for s in active_seasons %}
+            <li>
+                <a class="dropdown-item {% if selected_season.id == s.id %}fw-bold{% endif %}"
+                   href="?season={{ s.id }}">{{ s.name }} {{ s.year }}</a>
+            </li>
+            {% endfor %}
+        </ul>
+    </li>
+    {% endif %}
+
+    {% if past_seasons %}
+    <li class="nav-item dropdown">
+        <a class="nav-link dropdown-toggle {% if selected_season in past_seasons %}active{% endif %}"
+           data-bs-toggle="dropdown" href="#">📦 Past</a>
+        <ul class="dropdown-menu">
+            {% for s in past_seasons %}
+            <li>
+                <a class="dropdown-item {% if selected_season.id == s.id %}fw-bold{% endif %}"
+                   href="?season={{ s.id }}">{{ s.name }} {{ s.year }}</a>
+            </li>
+            {% endfor %}
+        </ul>
+    </li>
+    {% endif %}
+
+    {% if future_seasons %}
+    <li class="nav-item dropdown">
+        <a class="nav-link dropdown-toggle {% if selected_season in future_seasons %}active{% endif %}"
+           data-bs-toggle="dropdown" href="#">🔮 Future</a>
+        <ul class="dropdown-menu">
+            {% for s in future_seasons %}
+            <li>
+                <a class="dropdown-item {% if selected_season.id == s.id %}fw-bold{% endif %}"
+                   href="?season={{ s.id }}">{{ s.name }} {{ s.year }}</a>
+            </li>
+            {% endfor %}
+        </ul>
+    </li>
+    {% endif %}
+
+    {% if not active_seasons and not past_seasons and not future_seasons %}
+    <li class="nav-item">
+        <span class="nav-link text-muted disabled">No seasons yet</span>
+    </li>
+    {% endif %}
+</ul>
+
+<!-- Selected season info -->
+{% if selected_season %}
+<div class="d-flex align-items-center gap-3 mb-3">
+    <h5 class="mb-0">{{ selected_season.name }} {{ selected_season.year }}</h5>
+    <small class="text-muted">{{ selected_season.start_date }} → {{ selected_season.end_date }}</small>
+    <a href="{% url 'season-report' selected_season.id %}" class="btn btn-sm btn-outline-secondary ms-auto">
+        📊 Season Report
+    </a>
+</div>
+
+<!-- FieldCrop table for this season -->
+{% if field_crops %}
+<div class="card border-0 shadow-sm">
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+            <thead class="table-light">
+                <tr>
+                    <th>Crop</th>
+                    <th>Planting</th>
+                    <th>Harvest</th>
+                    <th>Status</th>
+                    <th>Operations</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in field_crops %}
+                <tr>
+                    <td class="fw-semibold">{{ item.fc.crop.name }}</td>
+                    <td class="small text-muted">{{ item.fc.planting_date }}</td>
+                    <td class="small text-muted">{{ item.fc.harvest_date|default:"—" }}</td>
+                    <td>
+                        {% if item.computed_status == "harvested" %}
+                        <span class="badge bg-success">Harvested</span>
+                        {% elif item.computed_status == "active" %}
+                        <span class="badge bg-primary">Active</span>
+                        {% else %}
+                        <span class="badge bg-secondary">Planned</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <div class="d-flex align-items-center gap-2">
+                            <div class="progress flex-grow-1" style="height:6px;min-width:60px;">
+                                {% if item.ops_total > 0 %}
+                                <div class="progress-bar bg-success" style="width:{% widthratio item.ops_done item.ops_total 100 %}%"></div>
+                                {% endif %}
+                            </div>
+                            <span class="small text-muted">{{ item.ops_done }}/{{ item.ops_total }}</span>
+                        </div>
+                    </td>
+                    <td class="text-end">
+                        <a href="{% url 'field-crop-detail' item.fc.pk %}" class="btn btn-sm btn-outline-success">Details</a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% else %}
+<div class="text-center text-muted py-4">
+    <p class="mb-0">No crops recorded for this season.</p>
+</div>
+{% endif %}
+
+{% else %}
+<div class="text-center text-muted py-5">
+    <p class="mb-2">No seasons recorded for this field yet.</p>
+    {% if is_owner %}
+    <a href="{% url 'create-season' %}?next={{ request.path }}" class="btn btn-outline-primary btn-sm">+ Create Season</a>
+    {% endif %}
+</div>
+{% endif %}
+
+<!-- Block C/D: Operations table for selected season -->
+{% if operations %}
+<h6 class="mt-4 mb-2 text-muted text-uppercase" style="font-size:11px;letter-spacing:.06em;">Operations ({{ operations|length }})</h6>
+<div class="card border-0 shadow-sm">
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0 small">
+            <thead class="table-light">
+                <tr>
+                    <th>Date</th>
+                    <th>Type</th>
+                    <th>Crop</th>
+                    <th>Status</th>
+                    <th>Worker</th>
+                    <th>Resources</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for op in operations %}
+                <tr>
+                    <td class="text-nowrap">{{ op.date }}</td>
+                    <td>{{ op.get_type_display }}</td>
+                    <td class="text-muted">{{ op.field_crop.crop.name }}</td>
+                    <td>
+                        {% if op.status == "done" %}
+                        <span class="badge bg-success">Done</span>
+                        {% else %}
+                        <span class="badge bg-secondary">Planned</span>
+                        {% endif %}
+                    </td>
+                    <td class="text-muted">{{ op.performed_by.username|default:"—" }}</td>
+                    <td>
+                        {% for r in op.operation_resources.all %}
+                        <span class="badge bg-secondary-subtle text-body border me-1">
+                            {{ r.resource.name }}: {{ r.quantity }} {{ r.resource.unit }}
+                        </span>
+                        {% empty %}—{% endfor %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+
+{% endblock %}

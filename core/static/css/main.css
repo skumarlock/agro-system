@@ -284,11 +284,6 @@
 
         /* Fix: dropdown arrow overlapping text */
         .form-select {
-            padding-right: 3.5rem;
-            background-position: right 1.2rem center;
-        }
-
-        .dashboard-chart {
-            height: 240px;
-            width: 100% !important;
+            padding-right: 3rem;
+            background-position: right 1rem center;
         }

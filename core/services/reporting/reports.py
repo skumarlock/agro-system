@@ -65,10 +65,13 @@ def get_season_report(season: Season, user: User) -> dict:
     }
 
 def get_field_crops_reports(user):
-    field_crops = (
-        FieldCrop.objects.filter(field__owner=user)
-        .select_related("field", "crop", "season")
-        .order_by("id")
-    )
-
-    return [get_field_crop_report(fc, include_finances=True) for fc in field_crops]
+    qs = FieldCrop.objects.select_related("field", "crop", "season").order_by("id")
+    if user.role == "agronomist":
+        from core.models import AgronomistAssignment
+        owner_ids = AgronomistAssignment.objects.filter(
+            agronomist=user
+        ).values_list("owner_id", flat=True)
+        qs = qs.filter(field__owner_id__in=owner_ids)
+    else:
+        qs = qs.filter(field__owner=user)
+    return [get_field_crop_report(fc, include_finances=True) for fc in qs]

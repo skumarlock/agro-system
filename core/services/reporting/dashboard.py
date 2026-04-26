@@ -12,19 +12,24 @@ def get_dashboard_data(
     period="all",
     month=None,
     year=None,
-    season_id=None
+    from_date=None,
+    to_date=None,
 ) -> dict:
     return {
         "total_cost": calculate_user_total_cost(
-            user, period=period, month=month, year=year, season_id=season_id
+            user, period=period, month=month, year=year,
+            from_date=from_date, to_date=to_date
         ),
         "fields_count": get_user_fields_count(
-            user, period=period, month=month, year=year, season_id=season_id
+            user, period=period, month=month, year=year,
+            from_date=from_date, to_date=to_date
         ),
         "operations_count": get_user_operations_count(
-            user, period=period, month=month, year=year, season_id=season_id
+            user, period=period, month=month, year=year,
+            from_date=from_date, to_date=to_date
         ),
         "resources": get_user_resources_summary(
-            user, period=period, month=month, year=year, season_id=season_id
+            user, period=period, month=month, year=year,
+            from_date=from_date, to_date=to_date
         ),
     }

@@ -56,15 +56,19 @@ class Season(TimeStampedModel):
     year = models.PositiveIntegerField()
     start_date = models.DateField()
     end_date = models.DateField()
+    owner = models.ForeignKey(
+        "User",
+        on_delete=models.CASCADE,
+        related_name="seasons",
+        null=True,
+        blank=True,
+    )
 
     class Meta:
         ordering = ["-year", "name"]
-        unique_together = ("name", "year")
 
     def __str__(self):
         return f"{self.name} {self.year}"
-        
-
 
 class Field(TimeStampedModel):
     name = models.CharField(max_length=255)
@@ -136,6 +140,38 @@ class FieldCrop(TimeStampedModel):
             models.Index(fields=["field", "season"]),
         ]
 
+    def get_computed_status(self) -> str:
+        """
+        Compute FieldCrop lifecycle status purely from operations and dates.
+        Season is NOT involved in this logic.
+
+        PLANNED   → no operations OR today < earliest operation date
+        ACTIVE    → first_op_date <= today <= last_op_date
+        HARVESTED → today > last_op_date AND all operations are done
+        """
+        from django.utils.timezone import now as tz_now
+        today = tz_now().date()
+
+        ops = list(self.operations.values("date", "status"))
+        if not ops:
+            return self.Status.PLANNED
+
+        dates = [op["date"] for op in ops]
+        first_date = min(dates)
+        last_date  = max(dates)
+
+        if today < first_date:
+            return self.Status.PLANNED
+
+        if today > last_date:
+            all_done = all(op["status"] == "done" for op in ops)
+            if all_done:
+                return self.Status.HARVESTED
+            # Some ops still planned after last date → still active
+            return self.Status.ACTIVE
+
+        return self.Status.ACTIVE
+
     def __str__(self):
         return f"{self.field} - {self.crop} ({self.season})"
 
@@ -204,6 +240,28 @@ class Resource(TimeStampedModel):
         return self.name
 
 
+class ResourcePrice(TimeStampedModel):
+    """Owner-specific price override for a resource."""
+    owner = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name="resource_prices",
+    )
+    resource = models.ForeignKey(
+        Resource,
+        on_delete=models.CASCADE,
+        related_name="prices",
+    )
+    price = models.DecimalField(max_digits=12, decimal_places=2)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = ("owner", "resource")
+
+    def __str__(self):
+        return f"{self.resource.name} → {self.price} (owner: {self.owner})"
+
+
 class OperationResource(TimeStampedModel):
     operation = models.ForeignKey(
         Operation,
@@ -224,9 +282,20 @@ class OperationResource(TimeStampedModel):
     )
 
     def save(self, *args, **kwargs):
-        if self.price_per_unit is None:
-            if self.resource_id:
-                self.price_per_unit = Resource.objects.get(pk=self.resource_id).cost_per_unit
+        if self.price_per_unit is None and self.resource_id:
+            # Try owner-specific price first
+            try:
+                owner = self.operation.field_crop.field.owner
+                rp = ResourcePrice.objects.filter(
+                    owner=owner, resource_id=self.resource_id
+                ).first()
+                self.price_per_unit = rp.price if rp else Resource.objects.get(
+                    pk=self.resource_id
+                ).cost_per_unit
+            except Exception:
+                self.price_per_unit = Resource.objects.get(
+                    pk=self.resource_id
+                ).cost_per_unit
         super().save(*args, **kwargs)
 
     class Meta:

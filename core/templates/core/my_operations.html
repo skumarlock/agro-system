@@ -1,163 +1,249 @@
 {% extends "base.html" %}
 
-{% block content %}
-<h1>My Operations</h1>
+{% block title %}My Operations | Agro System{% endblock %}
 
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h1 class="h3 mb-1">My Operations</h1>
+        <p class="text-muted mb-0">Track and manage your assigned field tasks.</p>
+    </div>
+</div>
+
+<!-- Filter + Sort bar -->
+<div class="mb-3 d-flex flex-wrap align-items-center gap-2">
+    <div class="btn-group" role="group" aria-label="Filter">
+        <a href="?filter=all&sort={{ sort }}&year={{ year }}&page=1"
+           class="btn btn-sm {% if filter == 'all' %}btn-primary{% else %}btn-outline-primary{% endif %}">All</a>
+        <a href="?filter=today&sort={{ sort }}&year={{ year }}&page=1"
+           class="btn btn-sm {% if filter == 'today' %}btn-primary{% else %}btn-outline-primary{% endif %}">Today</a>
+        <a href="?filter=week&sort={{ sort }}&year={{ year }}&page=1"
+           class="btn btn-sm {% if filter == 'week' %}btn-primary{% else %}btn-outline-primary{% endif %}">This Week</a>
+    </div>
+
+    <div class="vr mx-1"></div>
+
+    <!-- Block G: Year filter -->
+    {% if available_years %}
+    <form method="get" class="d-flex align-items-center gap-1">
+        <input type="hidden" name="filter" value="{{ filter }}">
+        <input type="hidden" name="sort" value="{{ sort }}">
+        <input type="hidden" name="page" value="1">
+        <small class="text-muted">Year:</small>
+        <select name="year" class="form-select form-select-sm" style="width:auto;"
+                onchange="this.form.submit()">
+            <option value="">All years</option>
+            {% for y in available_years %}
+            <option value="{{ y }}" {% if year == y|stringformat:"s" %}selected{% endif %}>{{ y }}</option>
+            {% endfor %}
+        </select>
+    </form>
+    {% endif %}
+
+    <div class="vr mx-1"></div>
+
+    <div class="d-flex align-items-center gap-1">
+        <small class="text-muted">Sort:</small>
+        <a href="?filter={{ filter }}&sort=date&year={{ year }}&page={{ page_obj.number }}"
+           class="btn btn-sm {% if sort == 'date' %}btn-secondary{% else %}btn-outline-secondary{% endif %}">Date ↑</a>
+        <a href="?filter={{ filter }}&sort=-date&year={{ year }}&page={{ page_obj.number }}"
+           class="btn btn-sm {% if sort == '-date' %}btn-secondary{% else %}btn-outline-secondary{% endif %}">Date ↓</a>
+    </div>
+</div>
+
+<!-- Desktop table -->
 <div class="table-responsive d-none d-md-block">
-    <table class="table">
-        <thead>
+    <table class="table table-hover align-middle mb-0">
+        <thead class="table-light">
             <tr>
-                <th>Date</th>
+                <th style="width:100px">Date</th>
                 <th>Field</th>
                 <th>Crop</th>
-                <th>Operation</th>
+                <th>Type</th>
                 <th>Resources</th>
-                <th>Action</th>
-                <th>Status</th>
-                <th>Details</th>
+                <th style="width:80px">Status</th>
+                <th style="width:80px">Action</th>
+                <th style="width:60px">Notes</th>
             </tr>
         </thead>
-    <tbody>
-        {% for op in operations %}
-        <tr>
-            <td>{{ op.date }}</td>
-            <td>{{ op.field_crop.field.name }}</td>
-            <td>{{ op.field_crop.crop.name }}</td>
-            <td>{{ op }}</td>
-            <td>
-                {% for r in op.operation_resources.all %}
-                <span class="badge bg-secondary-subtle text-body">
-                    {{ r.resource.name }}: {{ r.quantity }} {{ r.resource.unit }}
-                </span>
-                {% empty %}
-                <span class="text-muted">—</span>
-                {% endfor %}
-            </td>
-            <td>
-                <form method="post" action="{% url 'toggle-operation' op.id %}">
-                    {% csrf_token %}
+        <tbody>
+            {% for op in operations %}
+            <tr>
+                <td class="text-nowrap small">{{ op.date }}</td>
+                <td class="small">{{ op.field_crop.field.name }}</td>
+                <td class="small">{{ op.field_crop.crop.name }}</td>
+                <td class="small">{{ op.get_type_display }}</td>
+                <td>
+                    {% for r in op.operation_resources.all %}
+                    <span class="badge bg-secondary-subtle text-body me-1" style="font-size:11px;">
+                        {{ r.resource.name }}: {{ r.quantity }} {{ r.resource.unit }}
+                    </span>
+                    {% empty %}
+                    <span class="text-muted small">—</span>
+                    {% endfor %}
+                </td>
+                <td>
                     {% if op.status == "done" %}
-                    <button class="btn btn-sm btn-outline-danger">Undo</button>
+                    <span class="badge bg-success">Done</span>
                     {% else %}
-                    <button class="btn btn-sm btn-success">Done</button>
+                    <span class="badge bg-warning text-dark">Planned</span>
                     {% endif %}
-                </form>
-            </td>
-            <td>
-                {% if op.status == "done" %}
-                <span class="badge bg-success">Done</span>
-                {% else %}
-                <span class="badge bg-warning text-dark">Planned</span>
-                {% endif %}
-            </td>
-            <td>
-                {% if op.description %}
-                <button class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal"
-                    data-bs-target="#desc{{ op.id }}">
-                    View
-                </button>
-                {% else %}
-                <span class="text-muted">—</span>
-                {% endif %}
-            </td>
-        </tr>
-        {% empty %}
-        <tr>
-            <td colspan="4">No operations</td>
-        </tr>
-        {% endfor %}
-    </tbody>
+                </td>
+                <td>
+                    <form method="post" action="{% url 'toggle-operation' op.id %}" class="d-inline">
+                        {% csrf_token %}
+                        <input type="hidden" name="page" value="{{ page_obj.number }}">
+                        <input type="hidden" name="filter" value="{{ filter }}">
+                        <input type="hidden" name="sort" value="{{ sort }}">
+                        {% if op.status == "done" %}
+                        <button class="btn btn-outline-danger btn-done">Undo</button>
+                        {% else %}
+                        <button class="btn btn-success btn-done">✓</button>
+                        {% endif %}
+                    </form>
+                </td>
+                <td>
+                    {% if op.description %}
+                    <button class="btn btn-sm btn-outline-secondary btn-done"
+                            data-bs-toggle="modal" data-bs-target="#desc{{ op.id }}">📋</button>
+                    {% else %}
+                    <span class="text-muted">—</span>
+                    {% endif %}
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="8" class="text-center text-muted py-5">No operations found.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
     </table>
 </div>
+
+<!-- Mobile cards -->
 <div class="d-md-none">
     {% for op in operations %}
     <div class="card mb-3 shadow-sm">
         <div class="card-body">
-
-            <div class="d-flex justify-content-between">
-                <strong>{{ op.date }}</strong>
-                <span class="badge {% if op.status == 'done' %}bg-success{% else %}bg-warning{% endif %}">
+            <div class="d-flex justify-content-between mb-1">
+                <strong class="small">{{ op.date }}</strong>
+                <span class="badge {% if op.status == 'done' %}bg-success{% else %}bg-warning text-dark{% endif %}">
                     {{ op.status|title }}
                 </span>
             </div>
-
-            <div class="text-muted small mb-2">
-                {{ op.field_crop.field.name }} • {{ op.field_crop.crop.name }}
+            <div class="text-muted small mb-1">
+                {{ op.field_crop.field.name }} · {{ op.field_crop.crop.name }}
             </div>
-
-            <div class="mb-2">
-                <strong>{{ op }}</strong>
-            </div>
-
+            <div class="mb-2 small"><strong>{{ op.get_type_display }}</strong></div>
             <div class="mb-2">
                 {% for r in op.operation_resources.all %}
-                    <span class="badge bg-secondary-subtle text-body">
-                        {{ r.resource.name }}: {{ r.quantity }}
-                    </span>
+                <span class="badge bg-secondary-subtle text-body me-1" style="font-size:11px;">
+                    {{ r.resource.name }}: {{ r.quantity }}
+                </span>
                 {% empty %}
-                    <span class="text-muted">—</span>
+                <span class="text-muted small">No resources</span>
                 {% endfor %}
             </div>
-
             <div class="d-flex gap-2">
                 <form method="post" action="{% url 'toggle-operation' op.id %}">
                     {% csrf_token %}
+                    <input type="hidden" name="page" value="{{ page_obj.number }}">
+                    <input type="hidden" name="filter" value="{{ filter }}">
+                    <input type="hidden" name="sort" value="{{ sort }}">
                     {% if op.status == "done" %}
-                        <button class="btn btn-sm btn-outline-danger">Undo</button>
+                    <button class="btn btn-sm btn-outline-danger">Undo</button>
                     {% else %}
-                        <button class="btn btn-sm btn-success">Done</button>
+                    <button class="btn btn-sm btn-success">✓ Done</button>
                     {% endif %}
                 </form>
-
                 {% if op.description %}
-                    <button class="btn btn-sm btn-outline-secondary"
-                            data-bs-toggle="modal"
-                            data-bs-target="#desc{{ op.id }}">
-                        View
-                    </button>
+                <button class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal"
+                    data-bs-target="#desc{{ op.id }}">Notes</button>
                 {% endif %}
             </div>
-
         </div>
     </div>
     {% empty %}
-        <p class="text-muted">No operations</p>
+    <p class="text-muted text-center mt-4">No operations found.</p>
     {% endfor %}
 </div>
-<div class="mt-3 d-flex justify-content-center">
-    {% if page_obj.has_previous %}
-    <a href="?page={{ page_obj.previous_page_number }}" class="btn btn-sm btn-outline-secondary me-2">Prev</a>
-    {% endif %}
 
-    <span class="align-self-center">
+<!-- Pagination with numbered pages -->
+{% if page_obj.paginator.num_pages > 1 %}
+<nav class="mt-4" aria-label="Operations pagination">
+    <ul class="pagination pagination-sm justify-content-center flex-wrap mb-0">
+        {% if page_obj.has_previous %}
+        <li class="page-item">
+            <a class="page-link"
+               href="?filter={{ filter }}&sort={{ sort }}&page={{ page_obj.previous_page_number }}">←</a>
+        </li>
+        {% else %}
+        <li class="page-item disabled"><span class="page-link">←</span></li>
+        {% endif %}
+
+        {% for num in page_obj.paginator.page_range %}
+            {% if page_obj.number == num %}
+            <li class="page-item active">
+                <span class="page-link">{{ num }}</span>
+            </li>
+            {% elif num >= page_obj.number|add:"-2" and num <= page_obj.number|add:"2" %}
+            <li class="page-item">
+                <a class="page-link" href="?filter={{ filter }}&sort={{ sort }}&page={{ num }}">{{ num }}</a>
+            </li>
+            {% elif num == 1 or num == page_obj.paginator.num_pages %}
+            <li class="page-item">
+                <a class="page-link" href="?filter={{ filter }}&sort={{ sort }}&page={{ num }}">{{ num }}</a>
+            </li>
+            {% elif num == page_obj.number|add:"-3" or num == page_obj.number|add:"3" %}
+            <li class="page-item disabled"><span class="page-link">…</span></li>
+            {% endif %}
+        {% endfor %}
+
+        {% if page_obj.has_next %}
+        <li class="page-item">
+            <a class="page-link"
+               href="?filter={{ filter }}&sort={{ sort }}&page={{ page_obj.next_page_number }}">→</a>
+        </li>
+        {% else %}
+        <li class="page-item disabled"><span class="page-link">→</span></li>
+        {% endif %}
+    </ul>
+    <p class="text-center text-muted small mt-2">
         Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}
-    </span>
+        ({{ page_obj.paginator.count }} total)
+    </p>
+</nav>
+{% endif %}
 
-    {% if page_obj.has_next %}
-    <a href="?page={{ page_obj.next_page_number }}" class="btn btn-sm btn-outline-secondary ms-2">Next</a>
-    {% endif %}
-</div>
+<!-- Description modals -->
 {% for op in operations %}
-    {% if op.description %}
-    <div class="modal fade" id="desc{{ op.id }}" tabindex="-1">
-        <div class="modal-dialog">
-            <div class="modal-content">
-
-                <div class="modal-header">
-                    <h5 class="modal-title">Operation Details</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                </div>
-
-                <div class="modal-body">
-                    <p><strong>{{ op }}</strong></p>
-                    <p>{{ op.description|linebreaks }}</p>
-                </div>
-
+{% if op.description %}
+<div class="modal fade" id="desc{{ op.id }}" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">{{ op.get_type_display }} — {{ op.date }}</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p class="mb-1 small text-muted">{{ op.field_crop.field.name }} / {{ op.field_crop.crop.name }}</p>
+                <hr class="my-2">
+                <p class="mb-0">{{ op.description|linebreaks }}</p>
             </div>
         </div>
     </div>
-    {% endif %}
+</div>
+{% endif %}
 {% endfor %}
 
 {% endblock %}
 
+{% block extra_scripts %}
+<style>
+.btn-done {
+    padding: 3px 10px;
+    font-size: 12px;
+    line-height: 1.3;
+}
+</style>
+{% endblock %}

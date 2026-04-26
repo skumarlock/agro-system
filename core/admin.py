@@ -2,7 +2,7 @@ from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
 from .models import (
     User, Field, Crop, Season,
-    FieldCrop, Operation, Resource, OperationResource, AgronomistAssignment
+    FieldCrop, Operation, Resource, OperationResource, AgronomistAssignment, ResourcePrice
 )
 
 # =====================
@@ -111,3 +111,10 @@ class OperationResourceAdmin(admin.ModelAdmin):
 class AgronomistAssignmentAdmin(admin.ModelAdmin):
     list_display = ("owner", "agronomist", "created_at")
     list_filter = ("owner", "agronomist")
+
+
+@admin.register(ResourcePrice)
+class ResourcePriceAdmin(admin.ModelAdmin):
+    list_display = ("owner", "resource", "price", "updated_at")
+    list_filter = ("owner", "resource__type")
+    search_fields = ("resource__name",)

@@ -4,30 +4,67 @@
 {% block title %}Dashboard | Agro System{% endblock %}
 
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-4">
+<div class="d-flex justify-content-between align-items-start mb-3 flex-wrap gap-2">
     <div>
         <h1 class="h3 mb-1">Dashboard</h1>
         <p class="text-muted mb-0">Reporting overview for your fields and operations.</p>
     </div>
-    <div class="mb-3">
+    <!-- Currency toggle -->
     <div class="btn-group">
-    <a href="?currency=uzs&{{ query_params }}"
-       class="btn btn-sm toggle-btn {% if currency == 'uzs' %}active{% endif %}">
-        UZS
-    </a>
+        <a href="?currency=uzs&{{ query_params }}"
+           class="btn btn-sm toggle-btn {% if currency == 'uzs' %}active{% endif %}">UZS</a>
+        <a href="?currency=usd&{{ query_params }}"
+           class="btn btn-sm toggle-btn {% if currency == 'usd' %}active{% endif %}">USD</a>
+    </div>
+</div>
 
-    <a href="?currency=usd&{{ query_params }}"
-       class="btn btn-sm toggle-btn {% if currency == 'usd' %}active{% endif %}">
-        USD
-    </a>
+<!-- Block A: date-range + quick period filters -->
+<div class="card border-0 shadow-sm mb-4">
+    <div class="card-body py-2">
+        <form method="get" class="d-flex flex-wrap align-items-center gap-2">
+            <input type="hidden" name="currency" value="{{ currency }}">
+
+            <!-- Quick filters -->
+            <div class="btn-group btn-group-sm">
+                <a href="?period=all&currency={{ currency }}"
+                   class="btn {% if period == 'all' %}btn-primary{% else %}btn-outline-secondary{% endif %}">All time</a>
+                <a href="?period=month&currency={{ currency }}"
+                   class="btn {% if period == 'month' %}btn-primary{% else %}btn-outline-secondary{% endif %}">This month</a>
+                <a href="?period=year&currency={{ currency }}"
+                   class="btn {% if period == 'year' %}btn-primary{% else %}btn-outline-secondary{% endif %}">This year</a>
+            </div>
+
+            <div class="vr"></div>
+
+            <!-- Year selector (for period=year) -->
+            {% if years %}
+            <select name="year" class="form-select form-select-sm" style="width:auto;"
+                    onchange="this.form.submit()">
+                <option value="">— Year —</option>
+                {% for y in years %}
+                <option value="{{ y }}" {% if year == y|stringformat:"s" %}selected{% endif %}>{{ y }}</option>
+                {% endfor %}
+            </select>
+            <input type="hidden" name="period" value="{% if period %}{{ period }}{% else %}year{% endif %}">
+            {% endif %}
+
+            <div class="vr"></div>
+
+            <!-- Custom date range -->
+            <small class="text-muted">Custom:</small>
+            <input type="date" name="from_date" value="{{ from_date }}"
+                   class="form-control form-control-sm" style="width:140px;" placeholder="From">
+            <input type="date" name="to_date" value="{{ to_date }}"
+                   class="form-control form-control-sm" style="width:140px;" placeholder="To">
+            <button type="submit" class="btn btn-sm btn-outline-primary">Apply</button>
+            {% if from_date or to_date %}
+            <a href="?period=all&currency={{ currency }}" class="btn btn-sm btn-outline-secondary">✕ Clear</a>
+            {% endif %}
+        </form>
+    </div>
 </div>
-</div>
-</div>
-{% if is_worker %}
-<div class="alert alert-info">
-    Showing only your activity
-</div>
-{% endif %}
+
+
 {% if is_owner %}
 <div class="row g-4 mb-4">
     <div class="col-md-4">
@@ -175,7 +212,7 @@
 {{ charts|json_script:"dashboard-chart-data" }}
 {{ dashboard.resources|json_script:"all-resources-data" }}
 <div class="row g-4 mb-4">
-    <div class="col-lg-5">
+    <div class="col-lg-4">
         <div class="card border-0 shadow-sm h-100">
             <div class="card-body d-flex flex-column">
                 <p class="text-muted text-uppercase small mb-2">Cost by Resource</p>
@@ -192,7 +229,7 @@
         </div>
     </div>
 
-    <div class="col-lg-3">
+    <div class="col-lg-4">
         <div class="card border-0 shadow-sm h-100">
             <div class="card-body d-flex flex-column">
                 <p class="text-muted text-uppercase small mb-2">Cost by Type</p>

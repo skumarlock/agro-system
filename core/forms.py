@@ -26,7 +26,11 @@ class OperationForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         user = kwargs.pop("user", None)
+        self.schedule_mode = kwargs.pop("schedule_mode", False)
         super().__init__(*args, **kwargs)
+
+        if self.schedule_mode:
+            self.fields["date"].required = False
 
         if user:
             if user.role == "agronomist":
@@ -82,4 +86,22 @@ class InviteAgronomistForm(forms.Form):
         label="Agronomist Email",
         widget=forms.EmailInput(attrs={"class": "form-control"}),
     )
-    
+
+
+class SeasonCreateForm(forms.ModelForm):
+    class Meta:
+        from core.models import Season
+        model = Season
+        fields = ["name", "start_date", "end_date"]   # year is auto-derived
+        widgets = {
+            "name": forms.TextInput(attrs={"class": "form-control"}),
+            "start_date": forms.DateInput(attrs={"type": "date", "class": "form-control"}),
+            "end_date":   forms.DateInput(attrs={"type": "date", "class": "form-control"}),
+        }
+
+    def clean(self):
+        cd = super().clean()
+        s, e = cd.get("start_date"), cd.get("end_date")
+        if s and e and e <= s:
+            raise forms.ValidationError("End date must be after start date.")
+        return cd

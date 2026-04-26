@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+
+{% block title %}My Fields | Agro System{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+    <div>
+        <h1 class="h3 mb-1">Fields</h1>
+        <p class="text-muted mb-0">Your farm fields and their current status.</p>
+    </div>
+    {% if is_owner %}
+    <div class="d-flex gap-2 flex-wrap">
+        <a href="{% url 'create-season' %}?next=fields-list" class="btn btn-sm btn-outline-primary">+ Season</a>
+        <a href="{% url 'create-operation' %}" class="btn btn-sm btn-success">+ Operation</a>
+        <a href="{% url 'create-worker' %}" class="btn btn-sm btn-outline-secondary">+ Worker</a>
+        <a href="{% url 'invite-agronomist' %}" class="btn btn-sm btn-outline-secondary">+ Agronomist</a>
+    </div>
+    {% endif %}
+</div>
+
+{% if field_data %}
+<div class="row g-3">
+    {% for item in field_data %}
+    <div class="col-md-6 col-lg-4">
+        <div class="card h-100 shadow-sm border-0 field-card">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-start mb-2">
+                    <h5 class="card-title mb-0 fw-semibold">{{ item.field.name }}</h5>
+                    {% if item.active_season %}
+                    <span class="badge bg-success-subtle text-success border border-success-subtle">Active</span>
+                    {% else %}
+                    <span class="badge bg-secondary-subtle text-secondary">No active season</span>
+                    {% endif %}
+                </div>
+                <p class="text-muted small mb-1">📍 {{ item.field.location }}</p>
+                <p class="text-muted small mb-2">📐 {{ item.field.area }} ha &nbsp;·&nbsp; 🌾 {{ item.crop_count }} crop{% if item.crop_count != 1 %}s{% endif %}</p>
+
+                {% if item.active_season %}
+                <div class="mb-3 p-2 rounded bg-success-subtle">
+                    <small class="text-success fw-semibold">🌱 {{ item.active_season.name }} {{ item.active_season.year }}</small><br>
+                    <small class="text-muted">{{ item.active_season.start_date }} → {{ item.active_season.end_date }}</small>
+                </div>
+                {% else %}
+                <div class="mb-3 p-2 rounded bg-light">
+                    <small class="text-muted">{{ item.seasons_count }} season{% if item.seasons_count != 1 %}s{% endif %} recorded</small>
+                </div>
+                {% endif %}
+            </div>
+            <div class="card-footer bg-transparent border-0 pt-0">
+                <a href="{% url 'field-detail' item.field.pk %}"
+                   class="btn btn-outline-primary btn-sm w-100">View Field →</a>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<div class="text-center py-5 text-muted">
+    <p class="mb-0">No fields found. Contact your administrator to add fields.</p>
+</div>
+{% endif %}
+
+<style>
+.field-card { transition: transform .15s, box-shadow .15s; }
+.field-card:hover { transform: translateY(-3px); box-shadow: 0 6px 20px rgba(0,0,0,.1)!important; }
+</style>
+{% endblock %}

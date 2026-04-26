@@ -44,8 +44,14 @@ def get_user_operations(user, limit=None):
         "operation_resources__resource"
     )
 
-    if user.role == "OWNER":
+    if user.role == "owner":
         qs = qs.filter(field_crop__field__owner=user)
+    elif user.role == "agronomist":
+        from core.models import AgronomistAssignment
+        owner_ids = AgronomistAssignment.objects.filter(
+            agronomist=user
+        ).values_list("owner_id", flat=True)
+        qs = qs.filter(field_crop__field__owner_id__in=owner_ids)
     else:
         qs = qs.filter(performed_by=user)
 

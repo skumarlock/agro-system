@@ -1,223 +1,240 @@
 {% extends "base.html" %}
 
+{% block title %}Create Operation | Agro System{% endblock %}
+
 {% block content %}
 
-<script>
-    document.addEventListener("input", function (e) {
-        if (e.target.tagName === "TEXTAREA") {
-            e.target.style.height = "auto";
-            e.target.style.height = (e.target.scrollHeight) + "px";
-        }
-    });
-</script>
-
 <div class="row justify-content-center">
-    <div class="col-lg-8">
+  <div class="col-lg-9">
 
-        <!-- HEADER -->
-        <div class="mb-4">
-            <h2 class="mb-1">Create Operation</h2>
-            <p class="text-muted mb-0">Plan and assign a new field operation</p>
+    <div class="mb-4">
+      <h2 class="mb-1">Create Operation</h2>
+      <p class="text-muted mb-0">Plan and assign a new field operation</p>
+    </div>
+
+    <!-- ────────────────────────── STEP 1: FORM ────────────────────────── -->
+    <div id="form-step">
+      <form method="post" id="operation-form">
+        {% csrf_token %}
+
+        <!-- GENERAL -->
+        <div class="card shadow-sm mb-4">
+          <div class="card-body">
+            <h5 class="mb-3">General</h5>
+
+            <!-- CASCADE: Field → Season → Crop -->
+            <div class="mb-3">
+              <label class="form-label fw-semibold">Field</label>
+              <select id="field-select" class="form-select">
+                <option value="">— Select Field —</option>
+              </select>
+            </div>
+            <div class="mb-3">
+              <label class="form-label fw-semibold">Season</label>
+              <select id="season-select" class="form-select" disabled>
+                <option value="">— Select Season —</option>
+              </select>
+            </div>
+            <div class="mb-3">
+              <label class="form-label fw-semibold">Crop / Field Crop</label>
+              <select id="crop-select" class="form-select" disabled>
+                <option value="">— Select Crop —</option>
+              </select>
+            </div>
+            <!-- hidden Django field driven by JS -->
+            <div class="d-none">{{ form.field_crop }}</div>
+
+            <div class="mb-3">
+              <label class="form-label fw-semibold">Operation Type</label>
+              {{ form.type }}
+            </div>
+
+            <div class="row">
+              <div class="col-md-6 mb-3" id="single-date-wrap">
+                <label class="form-label fw-semibold">Date <small class="text-muted">(leave empty when using schedule)</small></label>
+                {{ form.date }}
+              </div>
+              <div class="col-md-6 mb-3">
+                <label class="form-label fw-semibold">Status</label>
+                {{ form.status }}
+              </div>
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label fw-semibold">Worker</label>
+              {{ form.performed_by }}
+            </div>
+          </div>
         </div>
 
-        <form method="post" id="operation-form">
-            {% csrf_token %}
-
-            <!-- GENERAL -->
-            <div class="card shadow-sm mb-4">
-                <div class="card-body">
-                    <h5 class="mb-3">General</h5>
-
-                    <!-- CASCADE: Field → Season → Crop -->
-                    <div class="mb-3">
-                        <label class="form-label">Field</label>
-                        <select id="field-select" class="form-select">
-                            <option value="">— Select Field —</option>
-                        </select>
-                    </div>
-
-                    <div class="mb-3">
-                        <label class="form-label">Season</label>
-                        <select id="season-select" class="form-select" disabled>
-                            <option value="">— Select Season —</option>
-                        </select>
-                    </div>
-
-                    <div class="mb-3">
-                        <label class="form-label">Crop (Field Crop)</label>
-                        <select id="crop-select" class="form-select" disabled>
-                            <option value="">— Select Crop —</option>
-                        </select>
-                    </div>
-
-                    <!-- hidden django field that we drive from JS -->
-                    <div class="d-none">{{ form.field_crop }}</div>
-
-                    <div class="mb-3">
-                        <label class="form-label">Operation Type</label>
-                        {{ form.type }}
-                    </div>
-
-                    <div class="row">
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label">Date</label>
-                            {{ form.date }}
-                        </div>
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label">Status</label>
-                            {{ form.status }}
-                        </div>
-                    </div>
-
-                    <div class="mb-3">
-                        <label class="form-label">Worker</label>
-                        {{ form.performed_by }}
-                    </div>
-                </div>
+        <!-- RESOURCES -->
+        <div class="card shadow-sm mb-4">
+          <div class="card-body">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+              <h5 class="mb-0">Resources</h5>
+              <button type="button" onclick="addResource()" class="btn btn-sm btn-outline-secondary">+ Add Row</button>
             </div>
 
-            <!-- AUTO SCHEDULE -->
-            <div class="card shadow-sm mb-4">
-                <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-center mb-3">
-                        <h5 class="mb-0">Schedule</h5>
-                        <div class="d-flex gap-2">
-                            <button type="button" class="btn btn-sm btn-outline-primary" onclick="openScheduler()">
-                                🗓 Auto Schedule
-                            </button>
-                            <button type="button" class="btn btn-sm btn-outline-secondary" onclick="runAIPlan()">
-                                🤖 AI Plan
-                            </button>
-                        </div>
-                    </div>
-
-                    <!-- Schedule preview -->
-                    <div id="schedule-preview" class="d-none">
-                        <p class="text-muted small mb-2">Scheduled dates (will create one operation per date):</p>
-                        <div id="schedule-badges" class="d-flex flex-wrap gap-1 mb-2"></div>
-                        <button type="button" class="btn btn-sm btn-outline-danger" onclick="clearSchedule()">
-                            ✕ Clear schedule
-                        </button>
-                    </div>
-                    <input type="hidden" name="schedule" id="schedule-input">
-
-                    <!-- AI Preview -->
-                    <div id="ai-preview" class="d-none mt-3 p-3 border rounded bg-light">
-                        <p class="fw-semibold mb-2">🤖 AI Suggested Schedule:</p>
-                        <div id="ai-badges" class="d-flex flex-wrap gap-1 mb-2"></div>
-                        <div class="d-flex gap-2">
-                            <button type="button" class="btn btn-sm btn-success" onclick="acceptAIPlan()">Accept</button>
-                            <button type="button" class="btn btn-sm btn-outline-secondary" onclick="dismissAIPlan()">Dismiss</button>
-                        </div>
-                    </div>
+            <div id="resources-container">
+              <div class="resource-row row g-2 align-items-center mb-2">
+                <div class="col-md-5">
+                  <select name="resource" class="form-select resource-select">
+                    {% for r in resources %}
+                    <option value="{{ r.id }}" data-name="{{ r.name }}" data-price="{{ r.cost_per_unit }}">{{ r.name }} ({{ r.unit }})</option>
+                    {% endfor %}
+                  </select>
                 </div>
-            </div>
-
-            <!-- DESCRIPTION -->
-            <div class="card shadow-sm mb-4">
-                <div class="card-body">
-                    <h5 class="mb-3">Details</h5>
-                    <div class="mb-0">
-                        <label class="form-label">Description</label>
-                        {{ form.description }}
-                        <small class="text-muted">Optional notes for this operation</small>
-                    </div>
+                <div class="col-md-3">
+                  <input type="number" step="0.01" min="0" name="quantity" class="form-control" placeholder="Qty">
                 </div>
-            </div>
-
-            <!-- RESOURCES -->
-            <div class="card shadow-sm mb-4">
-                <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-center mb-3">
-                        <h5 class="mb-0">Resources</h5>
-                        <button type="button" onclick="addResource()" class="btn btn-sm btn-outline-secondary">
-                            + Add
-                        </button>
-                    </div>
-
-                    <div id="resources-container">
-                        <div class="resource-row row g-2 align-items-center mb-2">
-                            <div class="col-md-7">
-                                <select name="resource" class="form-select">
-                                    {% for r in resources %}
-                                    <option value="{{ r.id }}">{{ r.name }}</option>
-                                    {% endfor %}
-                                </select>
-                            </div>
-                            <div class="col-md-4">
-                                <input type="number" step="0.01" name="quantity" class="form-control"
-                                    placeholder="Quantity">
-                            </div>
-                            <div class="col-md-1 text-end">
-                                <button type="button" onclick="removeRow(this)" class="btn btn-sm btn-outline-danger">
-                                    ✕
-                                </button>
-                            </div>
-                        </div>
-                    </div>
+                {% if request.user.role == "owner" %}
+                <div class="col-md-3">
+                  <input type="number" step="0.01" min="0" name="price_override"
+                         class="form-control price-override-input" placeholder="Price/unit (optional)">
                 </div>
+                {% endif %}
+                <div class="col-md-1 text-end">
+                  <button type="button" onclick="removeRow(this)" class="btn btn-sm btn-outline-danger">✕</button>
+                </div>
+              </div>
             </div>
+          </div>
+        </div>
 
-            <!-- ACTIONS -->
-            <div class="d-flex justify-content-between">
-                <a href="{% url 'dashboard' %}" class="btn btn-outline-secondary">
-                    Cancel
-                </a>
-                <button class="btn btn-success px-4">
-                    Create Operation
+        <!-- SCHEDULE / AI -->
+        <!-- NOTES (before schedule) -->
+        <div class="card shadow-sm mb-4">
+          <div class="card-body">
+            <h5 class="mb-3">Notes</h5>
+            {{ form.description }}
+          </div>
+        </div>
+
+        <!-- SCHEDULE -->
+        <div class="card shadow-sm mb-4">
+          <div class="card-body">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+              <h5 class="mb-0">Schedule <small class="text-muted fw-normal">(optional)</small></h5>
+              <div class="d-flex gap-2">
+                <button type="button" class="btn btn-sm btn-outline-primary" onclick="openScheduler()">
+                  🗓 Auto Schedule
                 </button>
+                <button type="button" class="btn btn-sm btn-outline-secondary" onclick="runAIPlan()">
+                  🤖 AI Suggest
+                </button>
+              </div>
             </div>
-
-            <input type="hidden" name="next" value="{{ next }}">
-        </form>
-
-    </div>
-</div>
-
-<!-- Scheduler Modal -->
-<div class="modal fade" id="schedulerModal" tabindex="-1">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">Auto Schedule</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body">
-                <div class="mb-3">
-                    <label class="form-label">Frequency</label>
-                    <select id="sched-freq" class="form-select">
-                        <option value="7">Weekly (every 7 days)</option>
-                        <option value="14">Biweekly (every 14 days)</option>
-                        <option value="30">Monthly (every 30 days)</option>
-                    </select>
-                </div>
-                <div class="mb-3">
-                    <label class="form-label">Start Date</label>
-                    <input type="date" id="sched-start" class="form-control">
-                </div>
-                <div class="mb-3">
-                    <label class="form-label">End Date</label>
-                    <input type="date" id="sched-end" class="form-control">
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                <button type="button" class="btn btn-primary" onclick="generateSchedule()">Generate</button>
-            </div>
+            <p class="text-muted small mb-0">
+              Leave empty to use the single date above. Generate a schedule → Preview → Edit → Confirm.
+            </p>
+          </div>
         </div>
+
+        <div class="d-flex justify-content-between align-items-center">
+          <a href="{% url 'fields-list' %}" class="btn btn-outline-secondary">Cancel</a>
+          <div class="d-flex gap-2">
+            <button type="button" class="btn btn-primary" onclick="goToPreview()">
+              Preview &amp; Confirm →
+            </button>
+          </div>
+        </div>
+
+        <!-- Hidden fields populated by JS -->
+        <input type="hidden" name="schedule" id="schedule-input">
+        <input type="hidden" name="next" value="{{ next }}">
+      </form>
     </div>
+
+    <!-- ────────────────────────── STEP 2: PREVIEW TABLE ────────────────────────── -->
+    <div id="preview-step" class="d-none">
+      <div class="d-flex justify-content-between align-items-center mb-3">
+        <h4 class="mb-0">Preview Schedule</h4>
+        <button class="btn btn-outline-secondary btn-sm" onclick="backToForm()">← Edit</button>
+      </div>
+      <p class="text-muted small mb-3">
+        Review and adjust dates or quantities before saving. Each row creates one operation.
+      </p>
+
+      <div class="card shadow-sm mb-4">
+        <div class="table-responsive">
+          <table class="table align-middle mb-0" id="preview-table">
+            <thead class="table-light">
+              <tr>
+                <th>#</th>
+                <th>Date</th>
+                <th id="preview-resources-header">Resources</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="preview-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="d-flex justify-content-between">
+        <button class="btn btn-outline-danger btn-sm" onclick="backToForm()">← Back</button>
+        <button class="btn btn-success px-4" onclick="confirmAndSubmit()">
+          ✓ Create {{ '' }}Operations
+        </button>
+      </div>
+    </div>
+
+  </div>
 </div>
 
-<!-- Cascade + Schedule JSON data -->
+<!-- Auto Schedule Modal -->
+<div class="modal fade" id="schedulerModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Auto Schedule Generator</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div class="mb-3">
+          <label class="form-label">Frequency</label>
+          <select id="sched-freq" class="form-select">
+            <option value="7">Weekly (every 7 days)</option>
+            <option value="14">Bi-weekly (every 14 days)</option>
+            <option value="30">Monthly (every ~30 days)</option>
+          </select>
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Start Date</label>
+          <input type="date" id="sched-start" class="form-control">
+        </div>
+        <div class="mb-3">
+          <label class="form-label">End Date</label>
+          <input type="date" id="sched-end" class="form-control">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-primary" onclick="generateSchedule()">Generate</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- AI Preview Card -->
+<div class="toast-container position-fixed bottom-0 end-0 p-3" style="z-index:1080;">
+  <div id="ai-toast" class="toast align-items-center border-0" role="alert">
+    <div class="d-flex">
+      <div class="toast-body" id="ai-toast-body">🤖 Fetching AI plan…</div>
+      <button type="button" class="btn-close me-2 m-auto" data-bs-dismiss="toast"></button>
+    </div>
+  </div>
+</div>
+
+<!-- Cascade + resource data from server -->
 {{ fields|json_script:"fields-data" }}
 {{ field_crops|json_script:"field-crops-data" }}
 {{ seasons|json_script:"seasons-data" }}
 
-<!-- JS -->
 <script>
-// ──────────────────────────────────────────────
-// CASCADE LOGIC
-// ──────────────────────────────────────────────
+// ─────────────────────────────────────────────
+// CASCADE
+// ─────────────────────────────────────────────
 const cascadeFields     = JSON.parse(document.getElementById('fields-data').textContent);
 const cascadeFieldCrops = JSON.parse(document.getElementById('field-crops-data').textContent);
 const cascadeSeasons    = JSON.parse(document.getElementById('seasons-data').textContent);
@@ -228,180 +245,291 @@ const cropSel   = document.getElementById('crop-select');
 const hiddenFC  = document.getElementById('id_field_crop');
 const dateInput = document.getElementById('id_date');
 
-// Populate fields
 cascadeFields.forEach(f => fieldSel.add(new Option(f.name, f.id)));
 
+// Auto-select field if coming from a field detail page
+const preselectFieldId = "{{ preselect_field_id }}";
+if (preselectFieldId) {
+  fieldSel.value = preselectFieldId;
+  fieldSel.dispatchEvent(new Event('change'));
+}
+
 fieldSel.addEventListener('change', function () {
-    const fid = parseInt(this.value);
-    seasonSel.innerHTML = '<option value="">— Select Season —</option>';
-    cropSel.innerHTML   = '<option value="">— Select Crop —</option>';
-    hiddenFC.value = '';
-    seasonSel.disabled = true;
-    cropSel.disabled   = true;
+  const fid = parseInt(this.value);
+  seasonSel.innerHTML  = '<option value="">— Select Season —</option>';
+  cropSel.innerHTML    = '<option value="">— Select Crop —</option>';
+  hiddenFC.value       = '';
+  seasonSel.disabled   = true;
+  cropSel.disabled     = true;
+  if (!fid) return;
 
-    if (!fid) return;
-
-    // Collect season IDs that have field crops for this field
-    const seasonIds = new Set(
-        cascadeFieldCrops.filter(fc => fc.field_id === fid).map(fc => fc.season_id)
-    );
-    cascadeSeasons.filter(s => seasonIds.has(s.id)).forEach(s =>
-        seasonSel.add(new Option(s.name, s.id))
-    );
-    seasonSel.disabled = false;
+  const sidSet = new Set(
+    cascadeFieldCrops.filter(fc => fc.field_id === fid).map(fc => fc.season_id)
+  );
+  cascadeSeasons.filter(s => sidSet.has(s.id)).forEach(s =>
+    seasonSel.add(new Option(s.name, s.id))
+  );
+  seasonSel.disabled = false;
 });
 
 seasonSel.addEventListener('change', function () {
-    const sid = parseInt(this.value);
-    const fid = parseInt(fieldSel.value);
-    cropSel.innerHTML = '<option value="">— Select Crop —</option>';
-    hiddenFC.value = '';
-    cropSel.disabled = true;
+  const sid = parseInt(this.value);
+  const fid = parseInt(fieldSel.value);
+  cropSel.innerHTML = '<option value="">— Select Crop —</option>';
+  hiddenFC.value    = '';
+  cropSel.disabled  = true;
+  if (!sid) return;
 
-    if (!sid) return;
+  const season = cascadeSeasons.find(s => s.id === sid);
+  if (season) {
+    dateInput.min = season.start_date;
+    dateInput.max = season.end_date;
+    document.getElementById('sched-start').value = season.start_date;
+    document.getElementById('sched-end').value   = season.end_date;
+  }
 
-    // Set date min/max
-    const season = cascadeSeasons.find(s => s.id === sid);
-    if (season) {
-        dateInput.min = season.start_date;
-        dateInput.max = season.end_date;
-        // Pre-fill scheduler dates
-        document.getElementById('sched-start').value = season.start_date;
-        document.getElementById('sched-end').value   = season.end_date;
-    }
-
-    const fieldCrops = cascadeFieldCrops.filter(fc => fc.field_id === fid && fc.season_id === sid);
-    fieldCrops.forEach(fc => cropSel.add(new Option(fc.name, fc.id)));
-    cropSel.disabled = false;
-
-    if (fieldCrops.length === 1) {
-        // Only one option — still require explicit selection
-        cropSel.value = '';
-    }
+  cascadeFieldCrops
+    .filter(fc => fc.field_id === fid && fc.season_id === sid)
+    .forEach(fc => cropSel.add(new Option(fc.name, fc.id)));
+  cropSel.disabled = false;
 });
 
 cropSel.addEventListener('change', function () {
-    hiddenFC.value = this.value;
+  hiddenFC.value = this.value;
 });
 
-// ──────────────────────────────────────────────
+// ─────────────────────────────────────────────
 // RESOURCES
-// ──────────────────────────────────────────────
+// ─────────────────────────────────────────────
 function addResource() {
-    const container = document.getElementById("resources-container");
-    const firstRow  = container.children[0];
-    const newRow    = firstRow.cloneNode(true);
-    newRow.querySelector("input").value = "";
-    container.appendChild(newRow);
+  const container = document.getElementById('resources-container');
+  const clone = container.children[0].cloneNode(true);
+  // Clear all inputs in the cloned row
+  clone.querySelectorAll('input').forEach(i => i.value = '');
+  // Reset price input name (will be set on change like the original)
+  const priceInp = clone.querySelector('.price-override-input');
+  if (priceInp) priceInp.name = 'price_override';
+  container.appendChild(clone);
+  // Wire up the resource select change for the new row
+  wireResourceSelect(clone.querySelector('.resource-select'));
 }
 
-function removeRow(button) {
-    const row       = button.closest(".resource-row");
-    const container = document.getElementById("resources-container");
-    if (container.children.length > 1) row.remove();
+function removeRow(btn) {
+  const container = document.getElementById('resources-container');
+  if (container.children.length > 1) btn.closest('.resource-row').remove();
 }
 
-// ──────────────────────────────────────────────
-// AUTO SCHEDULE
-// ──────────────────────────────────────────────
-let currentSchedule = [];
+function wireResourceSelect(sel) {
+  if (!sel) return;
+  sel.addEventListener('change', function() {
+    const priceInp = this.closest('.resource-row').querySelector('.price-override-input');
+    if (priceInp) {
+      priceInp.name = `price_${this.value}`;
+    }
+  });
+  // Fire once on load to set initial name
+  sel.dispatchEvent(new Event('change'));
+}
+
+// Wire all existing resource selects on page load
+document.querySelectorAll('.resource-select').forEach(wireResourceSelect);
+
+function getBaseResources() {
+  const rows = document.querySelectorAll('.resource-row');
+  const result = [];
+  rows.forEach(row => {
+    const sel = row.querySelector('select[name="resource"]');
+    const inp = row.querySelector('input[name="quantity"]');
+    if (!sel || !inp) return;
+    const qty = parseFloat(inp.value);
+    if (sel.value && qty > 0) {
+      result.push({
+        id: parseInt(sel.value),
+        name: sel.options[sel.selectedIndex]?.dataset.name || sel.options[sel.selectedIndex]?.text || '',
+        quantity: qty,
+      });
+    }
+  });
+  return result;
+}
+
+// ─────────────────────────────────────────────
+// SCHEDULE
+// ─────────────────────────────────────────────
+let scheduleItems = []; // [{date, resources:[{id,name,quantity}]}]
 
 function openScheduler() {
-    const sid = parseInt(seasonSel.value);
-    if (!sid) { alert("Please select a Season first."); return; }
-    new bootstrap.Modal(document.getElementById('schedulerModal')).show();
+  if (!seasonSel.value) { alert('Please select a Season first.'); return; }
+  new bootstrap.Modal(document.getElementById('schedulerModal')).show();
 }
 
 function generateSchedule() {
-    const start = new Date(document.getElementById('sched-start').value);
-    const end   = new Date(document.getElementById('sched-end').value);
-    const freq  = parseInt(document.getElementById('sched-freq').value);
+  const start = new Date(document.getElementById('sched-start').value);
+  const end   = new Date(document.getElementById('sched-end').value);
+  const freq  = parseInt(document.getElementById('sched-freq').value);
 
-    if (!start || !end || isNaN(start) || isNaN(end)) {
-        alert("Please set valid start and end dates."); return;
-    }
+  if (isNaN(start) || isNaN(end)) { alert('Set valid start and end dates.'); return; }
 
-    const dates = [];
-    let cur = new Date(start);
-    while (cur <= end) {
-        dates.push(cur.toISOString().split('T')[0]);
-        cur.setDate(cur.getDate() + freq);
-    }
-
-    applySchedule(dates);
-    bootstrap.Modal.getInstance(document.getElementById('schedulerModal')).hide();
+  const baseRes = getBaseResources();
+  const dates   = [];
+  let cur = new Date(start);
+  while (cur <= end) {
+    dates.push(cur.toISOString().split('T')[0]);
+    cur.setDate(cur.getDate() + freq);
+  }
+  scheduleItems = dates.map(d => ({ date: d, resources: baseRes.map(r => ({...r})) }));
+  bootstrap.Modal.getInstance(document.getElementById('schedulerModal')).hide();
+  showPreview();
 }
 
-function applySchedule(dates) {
-    currentSchedule = dates;
-    document.getElementById('schedule-input').value = JSON.stringify(dates.map(d => ({ date: d })));
-
-    const preview = document.getElementById('schedule-preview');
-    const badges  = document.getElementById('schedule-badges');
-    badges.innerHTML = dates.map(d =>
-        `<span class="badge bg-secondary">${d}</span>`
-    ).join('');
-    preview.classList.remove('d-none');
-
-    // Disable manual date input when schedule is active
-    dateInput.disabled = true;
-    if (dates.length) dateInput.value = dates[0]; // satisfy form validation
-}
-
-function clearSchedule() {
-    currentSchedule = [];
-    document.getElementById('schedule-input').value = '';
-    document.getElementById('schedule-preview').classList.add('d-none');
-    document.getElementById('schedule-badges').innerHTML = '';
-    dateInput.disabled = false;
-    dateInput.value = '';
-}
-
-// ──────────────────────────────────────────────
-// AI PLAN
-// ──────────────────────────────────────────────
-let aiDates = [];
-
+// ─────────────────────────────────────────────
+// AI
+// ─────────────────────────────────────────────
 async function runAIPlan() {
-    const sid = parseInt(seasonSel.value);
-    const typ = document.getElementById('id_type') ? document.getElementById('id_type').value : '';
-    if (!sid) { alert("Please select a Season first."); return; }
+  const sid = parseInt(seasonSel.value);
+  if (!sid) { alert('Please select a Season first.'); return; }
+  const season = cascadeSeasons.find(s => s.id === sid);
+  if (!season) return;
 
-    const season = cascadeSeasons.find(s => s.id === sid);
-    if (!season) return;
+  const typeEl = document.getElementById('id_type');
+  const typ = typeEl ? typeEl.value : '';
+  const toast = new bootstrap.Toast(document.getElementById('ai-toast'));
+  document.getElementById('ai-toast-body').textContent = '🤖 Fetching AI plan…';
+  toast.show();
 
-    try {
-        const resp = await fetch(`/api/ai/plan/?start=${season.start_date}&end=${season.end_date}&type=${typ}`);
-        if (!resp.ok) throw new Error("API error");
-        const data = await resp.json();
-        aiDates = data.dates || [];
-    } catch (e) {
-        // Fallback mock: every 10 days in season
-        aiDates = [];
-        let cur = new Date(season.start_date);
-        const end = new Date(season.end_date);
-        while (cur <= end && aiDates.length < 5) {
-            aiDates.push(cur.toISOString().split('T')[0]);
-            cur.setDate(cur.getDate() + 10);
-        }
+  try {
+    const resp = await fetch(`/api/ai/plan/?start=${season.start_date}&end=${season.end_date}&type=${typ}`);
+    if (!resp.ok) throw new Error('API error');
+    const data = await resp.json();
+    const baseRes = getBaseResources();
+    scheduleItems = (data.dates || []).map(d => ({ date: d, resources: baseRes.map(r => ({...r})) }));
+    document.getElementById('ai-toast-body').textContent = `🤖 AI suggested ${scheduleItems.length} dates — Preview loaded.`;
+    setTimeout(() => toast.hide(), 2500);
+    showPreview();
+  } catch (e) {
+    document.getElementById('ai-toast-body').textContent = '❌ AI endpoint unavailable.';
+    setTimeout(() => toast.hide(), 3000);
+  }
+}
+
+// ─────────────────────────────────────────────
+// PREVIEW STEP
+// ─────────────────────────────────────────────
+function showPreview() {
+  if (!scheduleItems.length) { alert('No dates generated.'); return; }
+  renderPreviewTable();
+  document.getElementById('form-step').classList.add('d-none');
+  document.getElementById('preview-step').classList.remove('d-none');
+}
+
+function backToForm() {
+  document.getElementById('preview-step').classList.add('d-none');
+  document.getElementById('form-step').classList.remove('d-none');
+}
+
+function renderPreviewTable() {
+  const tbody = document.getElementById('preview-tbody');
+  tbody.innerHTML = '';
+
+  scheduleItems.forEach((item, idx) => {
+    const tr = document.createElement('tr');
+
+    // Index
+    const tdIdx = document.createElement('td');
+    tdIdx.className = 'text-muted';
+    tdIdx.textContent = idx + 1;
+    tr.appendChild(tdIdx);
+
+    // Date
+    const tdDate = document.createElement('td');
+    const dateInp = document.createElement('input');
+    dateInp.type = 'date';
+    dateInp.value = item.date;
+    dateInp.className = 'form-control form-control-sm';
+    dateInp.style.maxWidth = '150px';
+    dateInp.addEventListener('change', () => { scheduleItems[idx].date = dateInp.value; });
+    tdDate.appendChild(dateInp);
+    tr.appendChild(tdDate);
+
+    // Resources
+    const tdRes = document.createElement('td');
+    item.resources.forEach((r, ri) => {
+      const group = document.createElement('div');
+      group.className = 'd-flex align-items-center gap-1 mb-1';
+      group.innerHTML = `
+        <span class="badge bg-secondary-subtle text-body">${r.name}</span>
+        <input type="number" step="0.01" min="0" value="${r.quantity}"
+               class="form-control form-control-sm" style="max-width:80px;"
+               oninput="scheduleItems[${idx}].resources[${ri}].quantity = parseFloat(this.value)||0">
+      `;
+      tdRes.appendChild(group);
+    });
+    tr.appendChild(tdRes);
+
+    // Remove row
+    const tdDel = document.createElement('td');
+    const delBtn = document.createElement('button');
+    delBtn.type = 'button';
+    delBtn.className = 'btn btn-sm btn-outline-danger';
+    delBtn.textContent = '✕';
+    delBtn.addEventListener('click', () => {
+      scheduleItems.splice(idx, 1);
+      renderPreviewTable();
+    });
+    tdDel.appendChild(delBtn);
+    tr.appendChild(tdDel);
+
+    tbody.appendChild(tr);
+  });
+
+  // Update confirm button text
+  document.querySelector('#preview-step .btn-success').textContent =
+    `✓ Create ${scheduleItems.length} Operation${scheduleItems.length !== 1 ? 's' : ''}`;
+}
+
+function goToPreview() {
+  // Validate required fields before showing preview
+  if (!hiddenFC.value) { alert('Please select Field → Season → Crop.'); return; }
+  const baseRes = getBaseResources();
+  if (!baseRes.length) { alert('Add at least one resource with a quantity.'); return; }
+
+  if (!scheduleItems.length) {
+    // Single-date mode: just submit form directly
+    document.getElementById('operation-form').submit();
+    return;
+  }
+
+  // For schedule mode, sync current resource base into items then show preview
+  scheduleItems.forEach(item => {
+    if (!item.resources.length) {
+      item.resources = getBaseResources().map(r => ({...r}));
     }
-
-    const aiPreview = document.getElementById('ai-preview');
-    const aiBadges  = document.getElementById('ai-badges');
-    aiBadges.innerHTML = aiDates.map(d =>
-        `<span class="badge bg-info text-dark">${d}</span>`
-    ).join('');
-    aiPreview.classList.remove('d-none');
+  });
+  showPreview();
 }
 
-function acceptAIPlan() {
-    applySchedule(aiDates);
-    dismissAIPlan();
-}
+function confirmAndSubmit() {
+  if (!scheduleItems.length) { alert('No operations to create.'); return; }
 
-function dismissAIPlan() {
-    document.getElementById('ai-preview').classList.add('d-none');
-    aiDates = [];
+  // Validate all dates
+  const invalid = scheduleItems.filter(i => !i.date);
+  if (invalid.length) { alert('Some rows have missing dates.'); return; }
+
+  // Serialize schedule → hidden input
+  document.getElementById('schedule-input').value = JSON.stringify(
+    scheduleItems.map(item => ({
+      date: item.date,
+      resources: item.resources.filter(r => r.quantity > 0).map(r => ({
+        id: r.id,
+        quantity: r.quantity,
+      })),
+    }))
+  );
+
+  // Disable date input so form passes validation (schedule_mode makes date not required)
+  dateInput.disabled = true;
+
+  document.getElementById('operation-form').submit();
 }
 </script>
 

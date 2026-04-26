@@ -20,14 +20,27 @@ COST_EXPR = ExpressionWrapper(
 
 from django.utils.timezone import now
 
-def get_base_queryset(user: User, period="all", month=None, year=None, season_id=None):
-    qs = OperationResource.objects.filter(
-        operation__field_crop__field__owner=user
-    )
+
+def _get_owner_filter(user: User):
+    """Return a dict of filter kwargs to scope OperationResource to the correct owner(s)."""
+    if user.role == "agronomist":
+        from core.models import AgronomistAssignment
+        owner_ids = AgronomistAssignment.objects.filter(
+            agronomist=user
+        ).values_list("owner_id", flat=True)
+        return {"operation__field_crop__field__owner_id__in": list(owner_ids)}
+    return {"operation__field_crop__field__owner": user}
+
+
+def get_base_queryset(user: User, period="all", month=None, year=None,
+                      from_date=None, to_date=None):
+    qs = OperationResource.objects.filter(**_get_owner_filter(user))
 
     today = now().date()
 
-    if period == "month":
+    if from_date and to_date:
+        qs = qs.filter(operation__date__gte=from_date, operation__date__lte=to_date)
+    elif period == "month":
         if month and year:
             qs = qs.filter(
                 operation__date__month=month,
@@ -38,53 +51,45 @@ def get_base_queryset(user: User, period="all", month=None, year=None, season_id
                 operation__date__month=today.month,
                 operation__date__year=today.year
             )
-
-    elif period == "season":
-        if season_id:
-            qs = qs.filter(
-                operation__field_crop__season_id=season_id
-            )
-        else:
-            qs = qs.filter(
-            operation__field_crop__season__start_date__lte=today,
-            operation__field_crop__season__end_date__gte=today,
-        )
+    elif period == "year":
+        y = int(year) if year else today.year
+        qs = qs.filter(operation__date__year=y)
 
     return qs
 
-def calculate_user_total_cost(user: User, period="all", month=None, year=None, season_id=None) -> Decimal:
-    qs = get_base_queryset(user, period, month, year, season_id)
-
-    result = qs.annotate(
-        total=COST_EXPR,
-    ).aggregate(total_cost=Sum("total"))
-
+def calculate_user_total_cost(user: User, period="all", month=None, year=None,
+                              from_date=None, to_date=None) -> Decimal:
+    qs = get_base_queryset(user, period, month, year, from_date=from_date, to_date=to_date)
+    result = qs.annotate(total=COST_EXPR).aggregate(total_cost=Sum("total"))
     return result["total_cost"] or ZERO_DECIMAL
 
 def calculate_season_total_cost(season: Season, user: User) -> Decimal:
-    result = OperationResource.objects.filter(
-        operation__field_crop__season=season,
-        operation__field_crop__field__owner=user,
-    ).annotate(
-        total=COST_EXPR,
-    ).aggregate(total_cost=Sum("total"))
-
+    qs = OperationResource.objects.filter(operation__field_crop__season=season)
+    if user.role == "agronomist":
+        from core.models import AgronomistAssignment
+        owner_ids = AgronomistAssignment.objects.filter(agronomist=user).values_list("owner_id", flat=True)
+        qs = qs.filter(operation__field_crop__field__owner_id__in=owner_ids)
+    else:
+        qs = qs.filter(operation__field_crop__field__owner=user)
+    result = qs.annotate(total=COST_EXPR).aggregate(total_cost=Sum("total"))
     return result["total_cost"] if result["total_cost"] is not None else ZERO_DECIMAL
 
 
-def get_user_fields_count(user: User, period="all", month=None, year=None, season_id=None):
-    qs = get_base_queryset(user, period, month, year, season_id)
+def get_user_fields_count(user: User, period="all", month=None, year=None,
+                          from_date=None, to_date=None):
+    qs = get_base_queryset(user, period, month, year, from_date=from_date, to_date=to_date)
     return qs.values("operation__field_crop__field").distinct().count()
 
 
-def get_user_operations_count(user: User, period="all", month=None, year=None, season_id=None) -> int:
-    qs = get_base_queryset(user, period, month, year, season_id)
-
+def get_user_operations_count(user: User, period="all", month=None, year=None,
+                              from_date=None, to_date=None) -> int:
+    qs = get_base_queryset(user, period, month, year, from_date=from_date, to_date=to_date)
     return qs.values("operation").distinct().count()
 
 
-def get_user_resources_summary(user: User, period="all", month=None, year=None, season_id=None):
-    qs = get_base_queryset(user, period, month, year, season_id)
+def get_user_resources_summary(user: User, period="all", month=None, year=None,
+                               from_date=None, to_date=None):
+    qs = get_base_queryset(user, period, month, year, from_date=from_date, to_date=to_date)
 
     queryset = qs.values("resource__name", "resource__type").annotate(
         total_quantity=Sum("quantity"),
@@ -111,26 +116,37 @@ def get_user_resources_summary(user: User, period="all", month=None, year=None, 
 
 
 def get_season_fields_count(season: Season, user: User) -> int:
-    return FieldCrop.objects.filter(
-        season=season,
-        field__owner=user,
-    ).values("field_id").distinct().count()
+    qs = FieldCrop.objects.filter(season=season)
+    if user.role == "agronomist":
+        from core.models import AgronomistAssignment
+        owner_ids = AgronomistAssignment.objects.filter(agronomist=user).values_list("owner_id", flat=True)
+        qs = qs.filter(field__owner_id__in=owner_ids)
+    else:
+        qs = qs.filter(field__owner=user)
+    return qs.values("field_id").distinct().count()
 
 
 def get_season_operations_count(season: Season, user: User) -> int:
-    return Operation.objects.filter(
-        field_crop__season=season,
-        field_crop__field__owner=user,
-    ).count()
+    qs = Operation.objects.filter(field_crop__season=season)
+    if user.role == "agronomist":
+        from core.models import AgronomistAssignment
+        owner_ids = AgronomistAssignment.objects.filter(agronomist=user).values_list("owner_id", flat=True)
+        qs = qs.filter(field_crop__field__owner_id__in=owner_ids)
+    else:
+        qs = qs.filter(field_crop__field__owner=user)
+    return qs.count()
 
 
 def get_season_resources_summary(season: Season, user: User) -> list[dict]:
-    queryset = OperationResource.objects.filter(
-        operation__field_crop__season=season,
-        operation__field_crop__field__owner=user
-    ).values(
-        "resource__type"
-    ).annotate(
+    qs = OperationResource.objects.filter(operation__field_crop__season=season)
+    if user.role == "agronomist":
+        from core.models import AgronomistAssignment
+        owner_ids = AgronomistAssignment.objects.filter(agronomist=user).values_list("owner_id", flat=True)
+        qs = qs.filter(operation__field_crop__field__owner_id__in=owner_ids)
+    else:
+        qs = qs.filter(operation__field_crop__field__owner=user)
+
+    queryset = qs.values("resource__type").annotate(
         total_quantity=Sum("quantity"),
         total_cost=Sum(COST_EXPR),
     )
