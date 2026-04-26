@@ -16,7 +16,9 @@
         <div class="card border-0 shadow-sm h-100">
             <div class="card-body">
                 <p class="text-muted text-uppercase small mb-2">Total Cost</p>
-                <h2 class="h3 mb-0">{{ report.total_cost|money }}</h2>
+                <h2 class="h3 mb-0">
+                    {% if can_view_finances %}{{ report.total_cost|money }}{% else %}—{% endif %}
+                </h2>
             </div>
         </div>
     </div>
@@ -64,11 +66,15 @@
                         </th>
 
                         <th style="width: 35%;">
+                            {% if can_view_finances %}
                             <a href="?sort=cost&order={{ next_order }}&{{ query_params }}#resources-table"
                                 class="text-decoration-none text-body d-flex justify-content-center align-items-center gap-1">
                                 Cost
                                 {% include "components/sort_icon.html" with current_sort=sort current_order=order column="cost" %}
                             </a>
+                            {% else %}
+                            <span class="d-flex justify-content-center">Cost</span>
+                            {% endif %}
                         </th>
                     </tr>
                 </thead>
@@ -78,10 +84,14 @@
                         <td>{{ resource.name|title }}</td>
                         <td class="text-center">{{ resource.quantity }}</td>
                         <td class="text-center" style="min-width: 150px; white-space: nowrap;">
+                            {% if can_view_finances %}
                             {% if currency == "usd" %}
                             {{ resource.cost|money_usd }}
                             {% else %}
                             {{ resource.cost|money }}
+                            {% endif %}
+                            {% else %}
+                            —
                             {% endif %}
                         </td>
                     </tr>

@@ -50,7 +50,15 @@ def get_field_crop_report(field_crop: FieldCrop, include_finances=True) -> dict:
 }
 
 
-def get_season_report(season: Season, user: User) -> dict:
+def get_season_report(season: Season, user: User, include_finances=True) -> dict:
+    total_cost = calculate_season_total_cost(season, user)
+    resources = get_season_resources_summary(season, user)
+
+    if not include_finances:
+        total_cost = None
+        for resource in resources:
+            resource["cost"] = None
+
     return {
         "season_id": season.id,
         "season": {
@@ -58,10 +66,10 @@ def get_season_report(season: Season, user: User) -> dict:
             "name": season.name,
             "year": season.year,
         },
-        "total_cost": calculate_season_total_cost(season, user),
+        "total_cost": total_cost,
         "fields_count": get_season_fields_count(season, user),
         "operations_count": get_season_operations_count(season, user),
-        "resources": get_season_resources_summary(season, user),
+        "resources": resources,
     }
 
 def get_field_crops_reports(user):

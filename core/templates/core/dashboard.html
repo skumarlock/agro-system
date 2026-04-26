@@ -38,8 +38,8 @@
 
             <!-- Year selector (for period=year) -->
             {% if years %}
-            <select name="year" class="form-select form-select-sm" style="width:auto;"
-                    onchange="this.form.submit()">
+            <select name="year" class="form-select form-select-sm" style="width: auto; min-width: 110px;"
+                    onchange="this.form.elements['period'].value='year'; this.form.submit()">
                 <option value="">— Year —</option>
                 {% for y in years %}
                 <option value="{{ y }}" {% if year == y|stringformat:"s" %}selected{% endif %}>{{ y }}</option>
@@ -136,77 +136,6 @@
     </div>
 </div>
 {% endif %}
-{% endif %}
-<div class="mb-3 d-flex align-items-center gap-3 flex-wrap">
-    {% if is_owner %}
-
-    <small class="text-muted me-2">Period:</small>
-
-    <!-- ALL -->
-    <a href="?period=all&currency={{ currency }}"
-        class="btn btn-sm toggle-btn {% if period == 'all' %}active{% endif %}">
-        All
-    </a>
-
-    <!-- DIVIDER -->
-    <div class="vr"></div>
-    
-
-    <!-- MONTH -->
-    <form method="get" class="d-flex align-items-center gap-2 p-2 rounded period-form">
-        <input type="hidden" name="period" value="month">
-        <input type="hidden" name="currency" value="{{ currency }}">
-
-        <select name="month" class="form-select form-select-sm">
-            {% for m, name in months %}
-            <option value="{{ m }}" {% if request.GET.month == m|stringformat:"s" %}selected{% endif %}>
-                {{ name }}
-            </option>
-            {% endfor %}
-        </select>
-
-        <select name="year" class="form-select form-select-sm">
-            {% for y in years %}
-            <option value="{{ y }}" {% if request.GET.year == y|stringformat:"s" %}selected{% endif %}>
-                {{ y }}
-            </option>
-            {% endfor %}
-        </select>
-
-        <button class="btn btn-sm btn-outline-primary">Apply</button>
-        
-    </form>
-
-    <!-- DIVIDER -->
-    <div class="vr"></div>
-
-    <!-- SEASON -->
-    <form method="get" class="d-flex align-items-center gap-2 p-2 rounded period-form">
-        <input type="hidden" name="period" value="season">
-        <input type="hidden" name="currency" value="{{ currency }}">
-
-        <select name="season_id" class="form-select form-select-sm">
-            {% for s in seasons %}
-            <option value="{{ s.id }}" {% if request.GET.season_id == s.id|stringformat:"s" %}selected{% endif %}>
-                {{ s }}
-            </option>
-            {% endfor %}
-        </select>
-
-        <button class="btn btn-sm btn-outline-success">Apply</button>
-    </form>
-    
-    <div class="vr"></div>
-
-        <form class="d-flex align-items-center gap-2 p-2 rounded period-form">
-            <a href="{% url 'create-operation' %}" class="btn btn-sm btn-outline-secondary px-3">
-                + New Operation
-            </a>
-    </form>
-
-
-
-</div>
 
 {% if is_owner and charts %}
 {{ charts|json_script:"dashboard-chart-data" }}

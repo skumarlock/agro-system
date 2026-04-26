@@ -3,10 +3,23 @@
 {% block title %}Client Fields{% endblock %}
 
 {% block content %}
+<div class="d-flex justify-content-between align-items-start mb-4 flex-wrap gap-2">
+    <div>
+        <h1 class="h4 mb-1">{{ owner.username }} Fields</h1>
+        <p class="text-muted mb-0">One field per row. Open a field to see seasons, crops, and operations.</p>
+    </div>
 
-<div class="mb-4">
-    <h1 class="h4 mb-1">Client Fields</h1>
-    <p class="text-muted">Fields and crops overview</p>
+    {% if available_years %}
+    <form method="get" class="d-flex align-items-center gap-2">
+        <small class="text-muted">Year:</small>
+        <select name="year" class="form-select form-select-sm" onchange="this.form.submit()">
+            <option value="">All years</option>
+            {% for y in available_years %}
+            <option value="{{ y }}" {% if year == y|stringformat:"s" %}selected{% endif %}>{{ y }}</option>
+            {% endfor %}
+        </select>
+    </form>
+    {% endif %}
 </div>
 
 <div class="card border-0 shadow-sm">
@@ -15,45 +28,30 @@
             <thead>
                 <tr>
                     <th>Field</th>
-                    <th>Crop</th>
-                    <th>Season</th>
-                    <th>Status</th>
+                    <th>Location</th>
+                    <th>Area</th>
                     <th></th>
                 </tr>
             </thead>
             <tbody>
-                {% for item in reports %}
+                {% for field in fields %}
                 <tr>
-                    <td>{{ item.field.name }}</td>
-                    <td>{{ item.crop.name }}</td>
-                    <td>{{ item.season.name }} {{ item.season.year }}</td>
-                    <td>
-                        <span class="badge bg-success-subtle text-success">
-                            {{ item.status }}
-                        </span>
-                    </td>
+                    <td class="fw-semibold">{{ field.name }}</td>
+                    <td class="text-muted">{{ field.location }}</td>
+                    <td>{{ field.area }} ha</td>
                     <td class="text-end">
-                        <a href="{% url 'field-crop-detail' item.field_crop_id %}"
-                           class="btn btn-sm btn-outline-secondary">
-                            Details
-                        </a>
-
-                        <a href="{% url 'agronomist-field-operations' item.field_crop_id %}"
-                           class="btn btn-sm btn-outline-primary">
-                            Operations
+                        <a href="{% url 'field-detail' field.pk %}" class="btn btn-sm btn-outline-primary">
+                            View Field
                         </a>
                     </td>
                 </tr>
                 {% empty %}
                 <tr>
-                    <td colspan="5" class="text-center text-muted py-4">
-                        No data available
-                    </td>
+                    <td colspan="4" class="text-center text-muted py-4">No fields available</td>
                 </tr>
                 {% endfor %}
             </tbody>
         </table>
     </div>
 </div>
-
 {% endblock %}

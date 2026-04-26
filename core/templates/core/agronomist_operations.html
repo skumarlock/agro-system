@@ -20,19 +20,43 @@
                 <tr>
                     <th>Date</th>
                     <th>Operation</th>
+                    <th>Resources</th>
                     <th>Status</th>
+                    <th class="text-end">Actions</th>
                 </tr>
             </thead>
             <tbody>
                 {% for op in operations %}
-                <tr>
+                <tr id="op-{{ op.pk }}">
                     <td>{{ op.date }}</td>
                     <td>{{ op }}</td>
+                    <td>
+                        {% for r in op.operation_resources.all %}
+                        <span class="badge bg-secondary-subtle text-body border me-1">
+                            {{ r.resource.name }}: {{ r.quantity }} {{ r.resource.unit }}
+                        </span>
+                        {% empty %}—{% endfor %}
+                    </td>
                     <td>{{ op.status }}</td>
+                    <td class="text-end text-nowrap">
+                        <form method="post" action="{% url 'toggle-operation' op.pk %}" class="d-inline">
+                            {% csrf_token %}
+                            <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                            <button class="btn btn-sm btn-outline-success" type="submit">
+                                {% if op.status == "done" %}Undo{% else %}Done{% endif %}
+                            </button>
+                        </form>
+                        <a href="{% url 'edit-operation' op.pk %}?next={{ request.get_full_path|urlencode }}" class="btn btn-sm btn-outline-secondary">Edit</a>
+                        <form method="post" action="{% url 'delete-operation' op.pk %}" class="d-inline" onsubmit="return confirm('Delete this operation?');">
+                            {% csrf_token %}
+                            <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                            <button class="btn btn-sm btn-outline-danger" type="submit">Delete</button>
+                        </form>
+                    </td>
                 </tr>
                 {% empty %}
                 <tr>
-                    <td colspan="3" class="text-center text-muted py-4">No operations found.</td>
+                    <td colspan="5" class="text-center text-muted py-4">No operations found.</td>
                 </tr>
                 {% endfor %}
             </tbody>

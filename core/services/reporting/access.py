@@ -20,9 +20,9 @@ def get_user_season_or_404(user: User, pk: int) -> Season:
     qs = Season.objects.all()
 
     if user.role == "owner":
-        qs = qs.filter(field_crops__field__owner=user)
+        qs = qs.filter(owner=user)
     elif user.role == "agronomist":
-        qs = qs.filter(field_crops__field__owner__agronomist_links__agronomist=user)
+        qs = qs.filter(owner__agronomist_links__agronomist=user)
     else:
         qs = qs.filter(
             field_crops__operations__performed_by=user

@@ -30,7 +30,7 @@
         <input type="hidden" name="sort" value="{{ sort }}">
         <input type="hidden" name="page" value="1">
         <small class="text-muted">Year:</small>
-        <select name="year" class="form-select form-select-sm" style="width:auto;"
+        <select name="year" class="form-select form-select-sm" style="width: auto; min-width: 110px;"
                 onchange="this.form.submit()">
             <option value="">All years</option>
             {% for y in available_years %}
@@ -68,7 +68,7 @@
         </thead>
         <tbody>
             {% for op in operations %}
-            <tr>
+            <tr id="op-{{ op.pk }}">
                 <td class="text-nowrap small">{{ op.date }}</td>
                 <td class="small">{{ op.field_crop.field.name }}</td>
                 <td class="small">{{ op.field_crop.crop.name }}</td>
@@ -95,6 +95,7 @@
                         <input type="hidden" name="page" value="{{ page_obj.number }}">
                         <input type="hidden" name="filter" value="{{ filter }}">
                         <input type="hidden" name="sort" value="{{ sort }}">
+                        <input type="hidden" name="year" value="{{ year }}">
                         {% if op.status == "done" %}
                         <button class="btn btn-outline-danger btn-done">Undo</button>
                         {% else %}
@@ -123,7 +124,7 @@
 <!-- Mobile cards -->
 <div class="d-md-none">
     {% for op in operations %}
-    <div class="card mb-3 shadow-sm">
+    <div class="card mb-3 shadow-sm" id="op-{{ op.pk }}">
         <div class="card-body">
             <div class="d-flex justify-content-between mb-1">
                 <strong class="small">{{ op.date }}</strong>
@@ -150,6 +151,7 @@
                     <input type="hidden" name="page" value="{{ page_obj.number }}">
                     <input type="hidden" name="filter" value="{{ filter }}">
                     <input type="hidden" name="sort" value="{{ sort }}">
+                    <input type="hidden" name="year" value="{{ year }}">
                     {% if op.status == "done" %}
                     <button class="btn btn-sm btn-outline-danger">Undo</button>
                     {% else %}
@@ -175,7 +177,7 @@
         {% if page_obj.has_previous %}
         <li class="page-item">
             <a class="page-link"
-               href="?filter={{ filter }}&sort={{ sort }}&page={{ page_obj.previous_page_number }}">←</a>
+               href="?filter={{ filter }}&sort={{ sort }}&year={{ year }}&page={{ page_obj.previous_page_number }}">←</a>
         </li>
         {% else %}
         <li class="page-item disabled"><span class="page-link">←</span></li>
@@ -188,11 +190,11 @@
             </li>
             {% elif num >= page_obj.number|add:"-2" and num <= page_obj.number|add:"2" %}
             <li class="page-item">
-                <a class="page-link" href="?filter={{ filter }}&sort={{ sort }}&page={{ num }}">{{ num }}</a>
+                <a class="page-link" href="?filter={{ filter }}&sort={{ sort }}&year={{ year }}&page={{ num }}">{{ num }}</a>
             </li>
             {% elif num == 1 or num == page_obj.paginator.num_pages %}
             <li class="page-item">
-                <a class="page-link" href="?filter={{ filter }}&sort={{ sort }}&page={{ num }}">{{ num }}</a>
+                <a class="page-link" href="?filter={{ filter }}&sort={{ sort }}&year={{ year }}&page={{ num }}">{{ num }}</a>
             </li>
             {% elif num == page_obj.number|add:"-3" or num == page_obj.number|add:"3" %}
             <li class="page-item disabled"><span class="page-link">…</span></li>
@@ -202,7 +204,7 @@
         {% if page_obj.has_next %}
         <li class="page-item">
             <a class="page-link"
-               href="?filter={{ filter }}&sort={{ sort }}&page={{ page_obj.next_page_number }}">→</a>
+               href="?filter={{ filter }}&sort={{ sort }}&year={{ year }}&page={{ page_obj.next_page_number }}">→</a>
         </li>
         {% else %}
         <li class="page-item disabled"><span class="page-link">→</span></li>

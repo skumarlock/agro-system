@@ -33,7 +33,11 @@
                     {% endif %}
                 </div>
                 <p class="text-muted small mb-1">📍 {{ item.field.location }}</p>
-                <p class="text-muted small mb-2">📐 {{ item.field.area }} ha &nbsp;·&nbsp; 🌾 {{ item.crop_count }} crop{% if item.crop_count != 1 %}s{% endif %}</p>
+                <p class="text-muted small mb-2">
+                    📐 {{ item.field.area }} ha &nbsp;·&nbsp;
+                    🌱 {{ item.active_crop_count }} active crop{% if item.active_crop_count != 1 %}s{% endif %}
+                    <span class="text-muted">({{ item.total_crop_count }} total)</span>
+                </p>
 
                 {% if item.active_season %}
                 <div class="mb-3 p-2 rounded bg-success-subtle">

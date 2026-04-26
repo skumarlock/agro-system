@@ -9,6 +9,8 @@ from core.views_ui import (
     update_rate_view,
     my_operations_view,
     toggle_operation_status,
+    edit_operation,
+    delete_operation,
     create_operation,
     home_redirect,
     create_worker,
@@ -44,6 +46,8 @@ urlpatterns = [
     # Operations
     path("my-operations/", my_operations_view, name="my-operations"),
     path("operations/<int:pk>/toggle/", toggle_operation_status, name="toggle-operation"),
+    path("operations/<int:pk>/edit/", edit_operation, name="edit-operation"),
+    path("operations/<int:pk>/delete/", delete_operation, name="delete-operation"),
     path("operations/create/", create_operation, name="create-operation"),
 
     # Workers / team

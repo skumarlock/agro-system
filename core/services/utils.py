@@ -7,7 +7,7 @@ def sort_resources(resources, sort, order):
     key_map = {
         "name": lambda x: x["name"],
         "quantity": lambda x: x["quantity"],
-        "cost": lambda x: x["cost"],
+        "cost": lambda x: x["cost"] or 0,
     }
 
     if sort in key_map:

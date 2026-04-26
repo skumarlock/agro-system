@@ -247,12 +247,8 @@ const dateInput = document.getElementById('id_date');
 
 cascadeFields.forEach(f => fieldSel.add(new Option(f.name, f.id)));
 
-// Auto-select field if coming from a field detail page
 const preselectFieldId = "{{ preselect_field_id }}";
-if (preselectFieldId) {
-  fieldSel.value = preselectFieldId;
-  fieldSel.dispatchEvent(new Event('change'));
-}
+const preselectSeasonId = "{{ preselect_season_id }}";
 
 fieldSel.addEventListener('change', function () {
   const fid = parseInt(this.value);
@@ -263,10 +259,8 @@ fieldSel.addEventListener('change', function () {
   cropSel.disabled     = true;
   if (!fid) return;
 
-  const sidSet = new Set(
-    cascadeFieldCrops.filter(fc => fc.field_id === fid).map(fc => fc.season_id)
-  );
-  cascadeSeasons.filter(s => sidSet.has(s.id)).forEach(s =>
+  const field = cascadeFields.find(f => f.id === fid);
+  cascadeSeasons.filter(s => field && s.owner_id === field.owner_id).forEach(s =>
     seasonSel.add(new Option(s.name, s.id))
   );
   seasonSel.disabled = false;
@@ -297,6 +291,16 @@ seasonSel.addEventListener('change', function () {
 cropSel.addEventListener('change', function () {
   hiddenFC.value = this.value;
 });
+
+// Auto-select field/season when coming from a field detail page.
+if (preselectFieldId) {
+  fieldSel.value = preselectFieldId;
+  fieldSel.dispatchEvent(new Event('change'));
+  if (preselectSeasonId) {
+    seasonSel.value = preselectSeasonId;
+    seasonSel.dispatchEvent(new Event('change'));
+  }
+}
 
 // ─────────────────────────────────────────────
 // RESOURCES

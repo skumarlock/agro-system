@@ -66,6 +66,33 @@ class Season(TimeStampedModel):
 
     class Meta:
         ordering = ["-year", "name"]
+        unique_together = ("owner", "name", "start_date", "end_date")
+
+    def clean(self):
+        if self.start_date and self.end_date and self.end_date <= self.start_date:
+            raise ValidationError("End date must be after start date")
+
+        if self.start_date:
+            self.year = self.start_date.year
+
+        if not self.owner_id or not self.start_date or not self.end_date:
+            return
+
+        qs = Season.objects.filter(owner=self.owner).exclude(pk=self.pk)
+        if qs.filter(name=self.name, year=self.year).exists():
+            raise ValidationError("Season already exists")
+
+        if qs.filter(
+            start_date__lte=self.end_date,
+            end_date__gte=self.start_date,
+        ).exists():
+            raise ValidationError("Season overlaps with existing season")
+
+    def save(self, *args, **kwargs):
+        if self.start_date:
+            self.year = self.start_date.year
+        self.full_clean()
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return f"{self.name} {self.year}"
@@ -163,7 +190,7 @@ class FieldCrop(TimeStampedModel):
         if today < first_date:
             return self.Status.PLANNED
 
-        if today > last_date:
+        if today > last_date or (self.harvest_date and today > self.harvest_date):
             all_done = all(op["status"] == "done" for op in ops)
             if all_done:
                 return self.Status.HARVESTED
