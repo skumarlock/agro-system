@@ -1,29 +1,29 @@
 {% extends "base.html" %}
 
-{% block title %}Create Season | Agro System{% endblock %}
+{% block title %}Создать сезон | Agro System{% endblock %}
 
 {% block content %}
 <div class="row justify-content-center">
     <div class="col-lg-5">
         <div class="mb-4">
-            <h2 class="mb-1">New Season</h2>
-            <p class="text-muted mb-0">Define a growing season for your fields.</p>
+            <h2 class="mb-1">Создать сезон</h2>
+            <p class="text-muted mb-0">Определите сезон выращивания для ваших полей.</p>
         </div>
 
         <!-- Quick presets -->
         <div class="mb-3">
-            <label class="form-label fw-semibold text-muted small">Quick Preset</label>
+            <label class="form-label fw-semibold text-muted small">Быстрые шаблоны</label>
             <div class="d-flex flex-wrap gap-2" id="presets">
                 <button type="button" class="btn btn-sm btn-outline-success"
-                        onclick="applyPreset('Spring', '03-01', '05-31')">🌸 Spring</button>
+                        onclick="applyPreset('Весна', '03-01', '05-31')">🌸 Весна</button>
                 <button type="button" class="btn btn-sm btn-outline-warning"
-                        onclick="applyPreset('Summer', '06-01', '08-31')">☀️ Summer</button>
+                        onclick="applyPreset('Лето', '06-01', '08-31')">☀️ Лето</button>
                 <button type="button" class="btn btn-sm btn-outline-warning"
-                        onclick="applyPreset('Autumn', '09-01', '11-30')">🍂 Autumn</button>
+                        onclick="applyPreset('Осень', '09-01', '11-30')">🍂 Осень</button>
                 <button type="button" class="btn btn-sm btn-outline-primary"
-                        onclick="applyPreset('Winter', '12-01', '02-28')">❄️ Winter</button>
+                        onclick="applyPreset('Зима', '12-01', '02-28')">❄️ Зима</button>
                 <button type="button" class="btn btn-sm btn-outline-secondary"
-                        onclick="clearPreset()">✏️ Custom</button>
+                        onclick="clearPreset()">✏️ Пользовательский</button>
             </div>
         </div>
 
@@ -34,7 +34,7 @@
                     <input type="hidden" name="next" value="{{ next }}">
 
                     <div class="mb-3">
-                        <label class="form-label fw-semibold">Season Name</label>
+                        <label class="form-label fw-semibold">Название сезона</label>
                         {{ form.name }}
                         {% if form.name.errors %}
                         <div class="text-danger small mt-1">{{ form.name.errors }}</div>
@@ -43,14 +43,14 @@
 
                     <div class="row">
                         <div class="col-md-6 mb-3">
-                            <label class="form-label fw-semibold">Start Date</label>
+                            <label class="form-label fw-semibold">Дата начала</label>
                             {{ form.start_date }}
                             {% if form.start_date.errors %}
                             <div class="text-danger small mt-1">{{ form.start_date.errors }}</div>
                             {% endif %}
                         </div>
                         <div class="col-md-6 mb-3">
-                            <label class="form-label fw-semibold">End Date</label>
+                            <label class="form-label fw-semibold">Дата окончания</label>
                             {{ form.end_date }}
                             {% if form.end_date.errors %}
                             <div class="text-danger small mt-1">{{ form.end_date.errors }}</div>
@@ -59,7 +59,7 @@
                     </div>
 
                     <p class="text-muted small mb-3">
-                        ℹ️ Year is auto-derived from the start date.
+                        ℹ️ Год определяется автоматически на основе даты начала.
                     </p>
 
                     {% if form.non_field_errors %}
@@ -67,8 +67,8 @@
                     {% endif %}
 
                     <div class="d-flex justify-content-between mt-2">
-                        <a href="{% url 'fields-list' %}" class="btn btn-outline-secondary">Cancel</a>
-                        <button type="submit" class="btn btn-primary px-4">Create Season</button>
+                        <a href="{% url 'fields-list' %}" class="btn btn-outline-secondary">Отменить</a>
+                        <button type="submit" class="btn btn-primary px-4">Создать сезон</button>
                     </div>
                 </form>
             </div>

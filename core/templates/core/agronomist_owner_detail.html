@@ -1,19 +1,19 @@
 {% extends "base.html" %}
 
-{% block title %}Client Fields{% endblock %}
+{% block title %}Поля клиента{% endblock %}
 
 {% block content %}
 <div class="d-flex justify-content-between align-items-start mb-4 flex-wrap gap-2">
     <div>
-        <h1 class="h4 mb-1">{{ owner.username }} Fields</h1>
-        <p class="text-muted mb-0">One field per row. Open a field to see seasons, crops, and operations.</p>
+        <h1 class="h4 mb-1">{{ owner.username }} Поля</h1>
+        <p class="text-muted mb-0">Одно поле в строке. Откройте поле, чтобы увидеть сезоны, культуры и операции.</p>
     </div>
 
     {% if available_years %}
     <form method="get" class="d-flex align-items-center gap-2">
-        <small class="text-muted">Year:</small>
+        <small class="text-muted">Год:</small>
         <select name="year" class="form-select form-select-sm" onchange="this.form.submit()">
-            <option value="">All years</option>
+            <option value="">Все годы</option>
             {% for y in available_years %}
             <option value="{{ y }}" {% if year == y|stringformat:"s" %}selected{% endif %}>{{ y }}</option>
             {% endfor %}
@@ -27,9 +27,9 @@
         <table class="table table-hover align-middle mb-0">
             <thead>
                 <tr>
-                    <th>Field</th>
-                    <th>Location</th>
-                    <th>Area</th>
+                    <th>Поле</th>
+                    <th>Местоположение</th>
+                    <th>Площадь</th>
                     <th></th>
                 </tr>
             </thead>
@@ -41,13 +41,13 @@
                     <td>{{ field.area }} ha</td>
                     <td class="text-end">
                         <a href="{% url 'field-detail' field.pk %}" class="btn btn-sm btn-outline-primary">
-                            View Field
+                            Посмотреть поле
                         </a>
                     </td>
                 </tr>
                 {% empty %}
                 <tr>
-                    <td colspan="4" class="text-center text-muted py-4">No fields available</td>
+                    <td colspan="4" class="text-center text-muted py-4">Поля не найдены</td>
                 </tr>
                 {% endfor %}
             </tbody>

@@ -45,25 +45,25 @@
 
                     {% if user.role == "owner" or user.role == "admin" %}
                     <li class="nav-item">
-                        <a class="nav-link" href="{% url 'dashboard' %}">Dashboard</a>
+                        <a class="nav-link" href="{% url 'dashboard' %}">Панель</a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="{% url 'fields-list' %}">Fields</a>
+                        <a class="nav-link" href="{% url 'fields-list' %}">Поля</a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link fw-semibold" href="{% url 'create-operation' %}">+ Operation</a>
+                        <a class="nav-link fw-semibold" href="{% url 'create-operation' %}">+ Операция</a>
                     </li>
                     {% endif %}
 
                     {% if user.role == "agronomist" %}
                     <li class="nav-item">
-                        <a class="nav-link" href="{% url 'agronomist-dashboard' %}">Dashboard</a>
+                        <a class="nav-link" href="{% url 'agronomist-dashboard' %}">Панель</a>
                     </li>
                     {% endif %}
 
                     {% if user.role == "worker" %}
                     <li class="nav-item">
-                        <a class="nav-link" href="{% url 'my-operations' %}">My Tasks</a>
+                        <a class="nav-link" href="{% url 'my-operations' %}">Мои задачи</a>
                     </li>
                     {% endif %}
 
@@ -77,7 +77,7 @@
                     </span>
                     <form method="post" action="{% url 'logout' %}">
                         {% csrf_token %}
-                        <button type="submit" class="btn btn-outline-light btn-sm">Logout</button>
+                        <button type="submit" class="btn btn-outline-light btn-sm">Выйти</button>
                     </form>
                     <button type="button" id="theme-toggle" class="btn btn-sm ms-1 border-0">
                         <img id="theme-icon" src="{% static 'icons/icons8-dark-mode-100.png' %}" width="18">

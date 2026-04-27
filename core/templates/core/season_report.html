@@ -1,12 +1,12 @@
 {% extends "base.html" %}
 {% load formatters %}
 
-{% block title %}Season Report | Agro System{% endblock %}
+{% block title %}Отчет по сезону | Agro System{% endblock %}
 
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
     <div>
-        <h1 class="h3 mb-1">Season Report</h1>
+        <h1 class="h3 mb-1">Отчет по сезону</h1>
         <p class="text-muted mb-0">{{ report.season.name }} {{ report.season.year }}</p>
     </div>
 </div>
@@ -15,7 +15,7 @@
     <div class="col-md-4">
         <div class="card border-0 shadow-sm h-100">
             <div class="card-body">
-                <p class="text-muted text-uppercase small mb-2">Total Cost</p>
+                <p class="text-muted text-uppercase small mb-2">Общая стоимость</p>
                 <h2 class="h3 mb-0">
                     {% if can_view_finances %}{{ report.total_cost|money }}{% else %}—{% endif %}
                 </h2>
@@ -25,7 +25,7 @@
     <div class="col-md-4">
         <div class="card border-0 shadow-sm h-100">
             <div class="card-body">
-                <p class="text-muted text-uppercase small mb-2">Fields Count</p>
+                <p class="text-muted text-uppercase small mb-2">Количество полей</p>
                 <h2 class="h3 mb-0">{{ report.fields_count }}</h2>
             </div>
         </div>
@@ -33,7 +33,7 @@
     <div class="col-md-4">
         <div class="card border-0 shadow-sm h-100">
             <div class="card-body">
-                <p class="text-muted text-uppercase small mb-2">Operations Count</p>
+                <p class="text-muted text-uppercase small mb-2">Количество операций</p>
                 <h2 class="h3 mb-0">{{ report.operations_count }}</h2>
             </div>
         </div>
@@ -42,7 +42,7 @@
 
 <div class="card border-0 shadow-sm" id="resources-table">
     <div class="card-header">
-        <h2 class="h5 mb-0">Resources</h2>
+        <h2 class="h5 mb-0">Ресурсы</h2>
     </div>
     <div class="card-body p-0">
         <div class="table-responsive">
@@ -52,7 +52,7 @@
                         <th style="width: 40%;">
                             <a href="?sort=name&order={{ next_order }}&{{ query_params }}#resources-table"
                                 class="text-decoration-none text-body d-flex align-items-center gap-1">
-                                Name
+                                Название
                                 {% include "components/sort_icon.html" with current_sort=sort current_order=order column="name" %}
                             </a>
                         </th>
@@ -60,7 +60,7 @@
                         <th style="width: 25%;">
                             <a href="?sort=quantity&order={{ next_order }}&{{ query_params }}#resources-table"
                                 class="text-decoration-none text-body d-flex justify-content-center align-items-center gap-1">
-                                Quantity
+                                Количество
                                 {% include "components/sort_icon.html" with current_sort=sort current_order=order column="quantity" %}
                             </a>
                         </th>
@@ -69,11 +69,11 @@
                             {% if can_view_finances %}
                             <a href="?sort=cost&order={{ next_order }}&{{ query_params }}#resources-table"
                                 class="text-decoration-none text-body d-flex justify-content-center align-items-center gap-1">
-                                Cost
+                                Стоимость
                                 {% include "components/sort_icon.html" with current_sort=sort current_order=order column="cost" %}
                             </a>
                             {% else %}
-                            <span class="d-flex justify-content-center">Cost</span>
+                            <span class="d-flex justify-content-center">Стоимость</span>
                             {% endif %}
                         </th>
                     </tr>
@@ -97,7 +97,7 @@
                     </tr>
                     {% empty %}
                     <tr>
-                        <td colspan="3" class="text-center text-muted py-4">No resources found.</td>
+                        <td colspan="3" class="text-center text-muted py-4">Ресурсы не найдены.</td>
                     </tr>
                     {% endfor %}
                 </tbody>

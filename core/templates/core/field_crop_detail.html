@@ -1,15 +1,15 @@
 {% extends "base.html" %}
 {% load formatters %}
 
-{% block title %}Field Crop Details | Agro System{% endblock %}
+{% block title %}Детали культуры | Agro System{% endblock %}
 
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
     <div>
-        <h1 class="h3 mb-1">Field Crop Details</h1>
+        <h1 class="h3 mb-1">Детали культуры</h1>
         <p class="text-muted mb-0">{{ report.field.name }} / {{ report.crop.name }}</p>
     </div>
-    <a href="{% url 'field-crops' %}" class="btn btn-outline-secondary">Back to list</a>
+    <a href="{% url 'field-crops' %}" class="btn btn-outline-secondary">Назад к списку</a>
 </div>
 
 <div class="row g-4 mb-4">
@@ -17,20 +17,20 @@
         <div class="card border-0 shadow-sm h-100">
             <div class="card-body">
                 <dl class="row mb-0">
-                    <dt class="col-sm-4">Field</dt>
+                    <dt class="col-sm-4">Поле</dt>
                     <dd class="col-sm-8">{{ report.field.name }}</dd>
 
-                    <dt class="col-sm-4">Crop</dt>
+                    <dt class="col-sm-4">Культура</dt>
                     <dd class="col-sm-8">{{ report.crop.name }}</dd>
 
-                    <dt class="col-sm-4">Season</dt>
+                    <dt class="col-sm-4">Сезон</dt>
                     <dd class="col-sm-8">
                         <a href="{% url 'season-report' report.season.id %}" class="link-success text-decoration-none">
                             {{ report.season.name }} {{ report.season.year }}
                         </a>
                     </dd>
 
-                    <dt class="col-sm-4">Status</dt>
+                    <dt class="col-sm-4">Статус</dt>
                     <dd class="col-sm-8">{{ report.status|title }}</dd>
                 </dl>
             </div>
@@ -39,21 +39,21 @@
     <div class="col-lg-4">
         <div class="card border-0 shadow-sm mb-4">
             <div class="card-body">
-                <p class="text-muted text-uppercase small mb-2">Operations</p>
+                <p class="text-muted text-uppercase small mb-2">Операции</p>
                 <h2 class="h3 mb-0">{{ report.operations_count }}</h2>
             </div>
         </div>
         {% if report.total_cost is not None %}
         <div class="card border-0 shadow-sm mb-4">
             <div class="card-body">
-                <p class="text-muted text-uppercase small mb-2">Total Cost</p>
+                <p class="text-muted text-uppercase small mb-2">Общая стоимость</p>
                 <h2 class="h3 mb-0">{{ report.total_cost|money_short }} </h2>
                 <small class="text-muted">({{ report.total_cost|money }})</small>
             </div>
         </div>
         <div class="card border-0 shadow-sm">
             <div class="card-body">
-                <p class="text-muted text-uppercase small mb-2">Cost Per Hectare</p>
+                <p class="text-muted text-uppercase small mb-2">Стоимость на гектар</p>
                 <h2 class="h3 mb-0">{{ report.cost_per_hectare|money_short }} сум/га</h2>
                 <small class="text-muted">({{ report.cost_per_hectare|money }})</small>
             </div>
@@ -64,7 +64,7 @@
 
 <div class="card border-0 shadow-sm" id="resources-table">
     <div class="card-header bg-body">
-        <h2 class="h5 mb-0">Resources</h2>
+        <h2 class="h5 mb-0">Ресурсы</h2>
     </div>
     <div class="card-body p-0">
         <div class="table-responsive">
@@ -74,7 +74,7 @@
                         <th>
                             <a href="?sort=name&order={{ next_order }}&{{ query_params }}#resources-table"
                                 class="text-decoration-none text-body d-flex align-items-center gap-1">
-                                Name
+                                Название
                                 {% include "components/sort_icon.html" with current_sort=sort current_order=order column="name" %}
                             </a>
                         </th>
@@ -82,7 +82,7 @@
                         <th class="text-center">
                             <a href="?sort=quantity&order={{ next_order }}&{{ query_params }}#resources-table"
                                 class="text-decoration-none text-body d-flex justify-content-center align-items-center gap-1">
-                                Quantity
+                                Количество
                                 {% include "components/sort_icon.html" with current_sort=sort current_order=order column="quantity" %}
                             </a>
                         </th>
@@ -91,7 +91,7 @@
                         <th class="text-center">
                             <a href="?sort=cost&order={{ next_order }}&{{ query_params }}#resources-table"
                                 class="text-decoration-none text-body d-flex justify-content-left align-items-center gap-1">
-                                Cost
+                                Стоимость
                                 {% include "components/sort_icon.html" with current_sort=sort current_order=order column="cost" %}
                             </a>
                         </th>
@@ -109,7 +109,7 @@
                     </tr>
                     {% empty %}
                     <tr class="align-middle">
-                        <td colspan="{% if report.total_cost is not None %}3{% else %}2{% endif %}" class="text-center text-muted">No resources found</td>
+                        <td colspan="{% if report.total_cost is not None %}3{% else %}2{% endif %}" class="text-center text-muted">Ресурсы не найдены</td>
                     </tr>
                     {% endfor %}
                 </tbody>

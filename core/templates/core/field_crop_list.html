@@ -1,21 +1,21 @@
 {% extends "base.html" %}
 
-{% block title %}Field Crops | Agro System{% endblock %}
+{% block title %}Культуры | Agro System{% endblock %}
 
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
     <div>
-        <h1 class="h3 mb-1">Field Crops</h1>
-        <p class="text-muted mb-0">All crops across your fields.</p>
+        <h1 class="h3 mb-1">Культуры</h1>
+        <p class="text-muted mb-0">Все культуры на ваших полях.</p>
     </div>
 
     <!-- Owner-only action buttons -->
     {% if is_owner %}
     <div class="d-flex gap-2 flex-wrap">
-        <a href="{% url 'create-season' %}" class="btn btn-sm btn-outline-primary">+ Season</a>
-        <a href="{% url 'create-worker' %}" class="btn btn-sm btn-outline-secondary">+ Worker</a>
-        <a href="{% url 'invite-agronomist' %}" class="btn btn-sm btn-outline-secondary">+ Agronomist</a>
-        <a href="{% url 'my-agronomists' %}" class="btn btn-sm btn-outline-secondary">My Agronomists</a>
+        <a href="{% url 'create-season' %}" class="btn btn-sm btn-outline-primary">+ Сезон</a>
+        <a href="{% url 'create-worker' %}" class="btn btn-sm btn-outline-secondary">+ Рабочий</a>
+        <a href="{% url 'invite-agronomist' %}" class="btn btn-sm btn-outline-secondary">+ Агроном</a>
+        <a href="{% url 'my-agronomists' %}" class="btn btn-sm btn-outline-secondary">Мои агрономы</a>
     </div>
     {% endif %}
 </div>
@@ -24,12 +24,12 @@
     <div class="card-body p-0">
         <div class="table-responsive">
             <table class="table table-hover align-middle mb-0">
-                <thead class="table-light">
+                <thead class="table-responsive">
                     <tr>
-                        <th>Field</th>
-                        <th>Crop</th>
-                        <th>Season</th>
-                        <th>Status</th>
+                        <th>Поле</th>
+                        <th>Культура</th>
+                        <th>Сезон</th>
+                        <th>Статус</th>
                         <th></th>
                     </tr>
                 </thead>
@@ -42,22 +42,22 @@
                         <td>
                             {% with status=item.computed_status %}
                             {% if status == "harvested" %}
-                            <span class="badge bg-success">Harvested</span>
+                            <span class="badge bg-success">Собрано</span>
                             {% elif status == "active" %}
-                            <span class="badge bg-primary">Active</span>
+                            <span class="badge bg-primary">Активно</span>
                             {% else %}
-                            <span class="badge bg-secondary">Planned</span>
+                            <span class="badge bg-secondary">Запланировано</span>
                             {% endif %}
                             {% endwith %}
                         </td>
                         <td class="text-end">
                             <a href="{% url 'field-crop-detail' item.field_crop_id %}"
-                               class="btn btn-sm btn-outline-success">Details</a>
+                               class="btn btn-sm btn-outline-success">Детали</a>
                         </td>
                     </tr>
                     {% empty %}
                     <tr>
-                        <td colspan="5" class="text-center text-muted py-5">No field crops found.</td>
+                        <td colspan="5" class="text-center text-muted py-5">Культуры не найдены.</td>
                     </tr>
                     {% endfor %}
                 </tbody>

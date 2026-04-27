@@ -1,12 +1,12 @@
 {% extends "base.html" %}
 
-{% block title %}My Operations | Agro System{% endblock %}
+{% block title %}Мои операции | Agro System{% endblock %}
 
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
     <div>
-        <h1 class="h3 mb-1">My Operations</h1>
-        <p class="text-muted mb-0">Track and manage your assigned field tasks.</p>
+        <h1 class="h3 mb-1">Мои операции</h1>
+        <p class="text-muted mb-0">Отслеживайте и управляйте своими полевыми задачами.</p>
     </div>
 </div>
 
@@ -14,11 +14,11 @@
 <div class="mb-3 d-flex flex-wrap align-items-center gap-2">
     <div class="btn-group" role="group" aria-label="Filter">
         <a href="?filter=all&sort={{ sort }}&year={{ year }}&page=1"
-           class="btn btn-sm {% if filter == 'all' %}btn-primary{% else %}btn-outline-primary{% endif %}">All</a>
+           class="btn btn-sm {% if filter == 'all' %}btn-primary{% else %}btn-outline-primary{% endif %}">Все</a>
         <a href="?filter=today&sort={{ sort }}&year={{ year }}&page=1"
-           class="btn btn-sm {% if filter == 'today' %}btn-primary{% else %}btn-outline-primary{% endif %}">Today</a>
+           class="btn btn-sm {% if filter == 'today' %}btn-primary{% else %}btn-outline-primary{% endif %}">Сегодня</a>
         <a href="?filter=week&sort={{ sort }}&year={{ year }}&page=1"
-           class="btn btn-sm {% if filter == 'week' %}btn-primary{% else %}btn-outline-primary{% endif %}">This Week</a>
+           class="btn btn-sm {% if filter == 'week' %}btn-primary{% else %}btn-outline-primary{% endif %}">На этой неделе</a>
     </div>
 
     <div class="vr mx-1"></div>
@@ -29,10 +29,10 @@
         <input type="hidden" name="filter" value="{{ filter }}">
         <input type="hidden" name="sort" value="{{ sort }}">
         <input type="hidden" name="page" value="1">
-        <small class="text-muted">Year:</small>
+        <small class="text-muted">Год:</small>
         <select name="year" class="form-select form-select-sm" style="width: auto; min-width: 110px;"
                 onchange="this.form.submit()">
-            <option value="">All years</option>
+            <option value="">Все годы</option>
             {% for y in available_years %}
             <option value="{{ y }}" {% if year == y|stringformat:"s" %}selected{% endif %}>{{ y }}</option>
             {% endfor %}
@@ -43,11 +43,11 @@
     <div class="vr mx-1"></div>
 
     <div class="d-flex align-items-center gap-1">
-        <small class="text-muted">Sort:</small>
+        <small class="text-muted">Сортировать:</small>
         <a href="?filter={{ filter }}&sort=date&year={{ year }}&page={{ page_obj.number }}"
-           class="btn btn-sm {% if sort == 'date' %}btn-secondary{% else %}btn-outline-secondary{% endif %}">Date ↑</a>
+           class="btn btn-sm {% if sort == 'date' %}btn-secondary{% else %}btn-outline-secondary{% endif %}">Дата ↑</a>
         <a href="?filter={{ filter }}&sort=-date&year={{ year }}&page={{ page_obj.number }}"
-           class="btn btn-sm {% if sort == '-date' %}btn-secondary{% else %}btn-outline-secondary{% endif %}">Date ↓</a>
+           class="btn btn-sm {% if sort == '-date' %}btn-secondary{% else %}btn-outline-secondary{% endif %}">Дата ↓</a>
     </div>
 </div>
 
@@ -56,14 +56,14 @@
     <table class="table table-hover align-middle mb-0">
         <thead class="table-light">
             <tr>
-                <th style="width:100px">Date</th>
-                <th>Field</th>
-                <th>Crop</th>
-                <th>Type</th>
-                <th>Resources</th>
-                <th style="width:80px">Status</th>
-                <th style="width:80px">Action</th>
-                <th style="width:60px">Notes</th>
+                <th style="width:100px">Дата</th>
+                <th>Поле</th>
+                <th>Культура</th>
+                <th>Тип</th>
+                <th>Ресурсы</th>
+                <th style="width:80px">Статус</th>
+                <th style="width:80px">Действие</th>
+                <th style="width:60px">Примечания</th>
             </tr>
         </thead>
         <tbody>
@@ -84,9 +84,9 @@
                 </td>
                 <td>
                     {% if op.status == "done" %}
-                    <span class="badge bg-success">Done</span>
+                    <span class="badge bg-success">Выполнено</span>
                     {% else %}
-                    <span class="badge bg-warning text-dark">Planned</span>
+                    <span class="badge bg-warning text-dark">Запланировано</span>
                     {% endif %}
                 </td>
                 <td>
@@ -97,7 +97,7 @@
                         <input type="hidden" name="sort" value="{{ sort }}">
                         <input type="hidden" name="year" value="{{ year }}">
                         {% if op.status == "done" %}
-                        <button class="btn btn-outline-danger btn-done">Undo</button>
+                        <button class="btn btn-outline-danger btn-done">Отменить</button>
                         {% else %}
                         <button class="btn btn-success btn-done">✓</button>
                         {% endif %}
@@ -114,7 +114,7 @@
             </tr>
             {% empty %}
             <tr>
-                <td colspan="8" class="text-center text-muted py-5">No operations found.</td>
+                <td colspan="8" class="text-center text-muted py-5">Операции не найдены.</td>
             </tr>
             {% endfor %}
         </tbody>
@@ -142,7 +142,7 @@
                     {{ r.resource.name }}: {{ r.quantity }}
                 </span>
                 {% empty %}
-                <span class="text-muted small">No resources</span>
+                <span class="text-muted small">Ресурсы не найдены</span>
                 {% endfor %}
             </div>
             <div class="d-flex gap-2">
@@ -153,20 +153,20 @@
                     <input type="hidden" name="sort" value="{{ sort }}">
                     <input type="hidden" name="year" value="{{ year }}">
                     {% if op.status == "done" %}
-                    <button class="btn btn-sm btn-outline-danger">Undo</button>
+                    <button class="btn btn-sm btn-outline-danger">Отменить</button>
                     {% else %}
-                    <button class="btn btn-sm btn-success">✓ Done</button>
+                    <button class="btn btn-sm btn-success">✓ Выполнено</button>
                     {% endif %}
                 </form>
                 {% if op.description %}
                 <button class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal"
-                    data-bs-target="#desc{{ op.id }}">Notes</button>
+                    data-bs-target="#desc{{ op.id }}">Примечания</button>
                 {% endif %}
             </div>
         </div>
     </div>
     {% empty %}
-    <p class="text-muted text-center mt-4">No operations found.</p>
+    <p class="text-muted text-center mt-4">Операции не найдены.</p>
     {% endfor %}
 </div>
 
@@ -211,8 +211,8 @@
         {% endif %}
     </ul>
     <p class="text-center text-muted small mt-2">
-        Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}
-        ({{ page_obj.paginator.count }} total)
+        Страница {{ page_obj.number }} из {{ page_obj.paginator.num_pages }}
+        ({{ page_obj.paginator.count }} всего)
     </p>
 </nav>
 {% endif %}

@@ -1,12 +1,12 @@
 {% extends "base.html" %}
 
-{% block title %}Agronomist Dashboard{% endblock %}
+{% block title %}Панель агронома{% endblock %}
 
 {% block content %}
 
 <div class="mb-4">
-    <h1 class="h3 mb-1">My Clients</h1>
-    <p class="text-muted">Farms you are consulting</p>
+    <h1 class="h3 mb-1">Мои клиенты</h1>
+    <p class="text-muted">Фермы, которые вы консультируете</p>
 </div>
 
 <div class="card shadow-sm border-0">
@@ -14,8 +14,8 @@
         <table class="table table-hover mb-0 align-middle">
             <thead>
                 <tr>
-                    <th>Owner</th>
-                    <th>Fields</th>
+                    <th>Владелец</th>
+                    <th>Поля</th>
                     <th></th>
                 </tr>
             </thead>
@@ -27,14 +27,14 @@
                     <td class="text-end">
                         <a href="{% url 'agronomist-owner-detail' link.owner.id %}"
                             class="btn btn-sm btn-outline-success">
-                            View
+                            Посмотреть
                         </a>
                     </td>
                 </tr>
                 {% empty %}
                 <tr>
                     <td colspan="3" class="text-center text-muted py-4">
-                        No clients yet
+                        Пока нет клиентов
                     </td>
                 </tr>
                 {% endfor %}

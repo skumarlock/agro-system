@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}My Agronomists{% endblock %}
+{% block title %}Мои агрономы{% endblock %}
 
 {% block content %}
 
@@ -78,12 +78,12 @@
 
 <div class="d-flex justify-content-between align-items-center mb-4">
     <div>
-        <h1 class="h3 mb-1">My Agronomists</h1>
-        <p class="text-muted mb-0">Manage your agronomy consultants</p>
+        <h1 class="h3 mb-1">Мои агрономы</h1>
+        <p class="text-muted mb-0">Управляйте своими агрономами</p>
     </div>
 
     <a href="{% url 'invite-agronomist' %}" class="btn btn-sm btn-outline-secondary">
-        + Add Agronomist
+        + Добавить агронома
     </a>
 </div>
 
@@ -92,10 +92,10 @@
         <table class="table table-hover mb-0 align-middle">
             <thead>
                 <tr>
-                    <th>Username</th>
+                    <th>Пользователь</th>
                     <th>Email</th>
-                    <th>Connected Since</th>
-                    <th>Finance Access</th>
+                    <th>Подключено с</th>
+                    <th>Доступ к финансам</th>
                     <th></th> <!-- для кнопок -->
                 </tr>
             </thead>
@@ -108,20 +108,20 @@
 
                     <td>
                         {% if link.can_view_finances %}
-                        <span class="badge bg-success finance-badge">Allowed</span>
+                        <span class="badge bg-success finance-badge">Разрешено</span>
                         {% else %}
-                        <span class="badge bg-secondary finance-badge">Restricted</span>
+                        <span class="badge bg-secondary finance-badge">Запрещено</span>
                         {% endif %}
                     </td>
 
                     <td class="text-end">
 
                         <button class="toggle-finance btn btn-sm btn-outline-secondary" data-id="{{ link.id }}">
-                            Finance
+                            Финансы
                         </button>
 
                         <a href="{% url 'remove-agronomist' link.id %}" class="remove-agronomist btn btn-sm btn-outline-danger">
-                            Disconnect
+                            Отключить
                         </a>
 
                     </td>
@@ -129,7 +129,7 @@
                 {% empty %}
                 <tr>
                     <td colspan="4" class="text-center text-muted py-4">
-                        No agronomists connected
+                        Агрономы не найдены
                     </td>
                 </tr>
                 {% endfor %}

@@ -41,10 +41,10 @@ class User(AbstractUser, TimeStampedModel):
     def clean(self):
         # owner не может иметь owner
         if self.role == "owner" and self.owner is not None:
-            raise ValidationError("Owner cannot have an owner")
+            raise ValidationError("Владелец не может иметь владельца")
         # worker обязан иметь owner
         if self.role == "worker" and self.owner is None:
-            raise ValidationError("Worker must have an owner")
+            raise ValidationError("Работник должен иметь владельца")
     
     def save(self, *args, **kwargs):
         self.full_clean()
@@ -70,7 +70,7 @@ class Season(TimeStampedModel):
 
     def clean(self):
         if self.start_date and self.end_date and self.end_date <= self.start_date:
-            raise ValidationError("End date must be after start date")
+            raise ValidationError("Дата окончания должна быть позже даты начала")
 
         if self.start_date:
             self.year = self.start_date.year
@@ -80,13 +80,13 @@ class Season(TimeStampedModel):
 
         qs = Season.objects.filter(owner=self.owner).exclude(pk=self.pk)
         if qs.filter(name=self.name, year=self.year).exists():
-            raise ValidationError("Season already exists")
+            raise ValidationError("Сезон уже существует")
 
         if qs.filter(
             start_date__lte=self.end_date,
             end_date__gte=self.start_date,
         ).exists():
-            raise ValidationError("Season overlaps with existing season")
+            raise ValidationError("Сезон пересекается с существующим сезоном")
 
     def save(self, *args, **kwargs):
         if self.start_date:
@@ -123,9 +123,9 @@ class Crop(TimeStampedModel):
 
 class FieldCrop(TimeStampedModel):
     class Status(models.TextChoices):
-        PLANNED = "planned", "Planned"
-        ACTIVE = "active", "Active"
-        HARVESTED = "harvested", "Harvested"
+        PLANNED = "запланировано", "Запланировано"
+        ACTIVE = "активно", "Активно"
+        HARVESTED = "собран", "Собрано"
 
     field = models.ForeignKey(
         Field,
@@ -152,7 +152,7 @@ class FieldCrop(TimeStampedModel):
 
     def clean(self):
         if self.harvest_date and self.harvest_date < self.planting_date:
-            raise ValidationError("Harvest date cannot be earlier than planting date")
+            raise ValidationError("Дата сбора урожая не может быть раньше даты посадки")
     
     def save(self, *args, **kwargs):
         self.full_clean()
@@ -205,10 +205,10 @@ class FieldCrop(TimeStampedModel):
 
 class Operation(TimeStampedModel):
     class Type(models.TextChoices):
-        WATERING = "watering", "Watering"
-        PLANTING = "planting", "Planting"
-        FERTILIZING = "fertilizing", "Fertilizing"
-        HARVESTING = "harvesting", "Harvesting"
+        WATERING = "полив", "Полив"
+        PLANTING = "посадка", "Посадка"
+        FERTILIZING = "удобрение", "Удобрение"
+        HARVESTING = "сбор урожая", "Сбор урожая"
 
     class Status(models.TextChoices):
         PLANNED = "planned", "Planned"
@@ -253,10 +253,10 @@ class Operation(TimeStampedModel):
 
 class Resource(TimeStampedModel):
     class Type(models.TextChoices):
-        WATER = "water", "Water"
-        FERTILIZER = "fertilizer", "Fertilizer"
-        FUEL = "fuel", "Fuel"
-        SEED = "seed", "Seed"
+        WATER = "вода", "Вода"
+        FERTILIZER = "питательная смесь", "Питательная смесь"
+        FUEL = "топливо", "Топливо"
+        SEED = "семена", "Семена"
 
     name = models.CharField(max_length=255)
     unit = models.CharField(max_length=50)

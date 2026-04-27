@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}Create Worker | Agro System{% endblock %}
+{% block title %}Создать работника | Agro System{% endblock %}
 
 {% block content %}
 <div class="row justify-content-center">
@@ -8,8 +8,8 @@
 
         <!-- Заголовок -->
         <div class="mb-4 text-center">
-            <h2 class="h4 mb-1">Create Worker</h2>
-            <p class="text-muted mb-0">Add a new worker to your team</p>
+            <h2 class="h4 mb-1">Создать работника</h2>
+            <p class="text-muted mb-0">Добавить нового работника в вашу команду</p>
         </div>
 
         <!-- Карточка -->
@@ -21,7 +21,7 @@
 
                     <!-- Username -->
                     <div class="mb-3">
-                        <label class="form-label">Username</label>
+                        <label class="form-label">Имя</label>
                         {{ form.username }}
                     </div>
 
@@ -39,18 +39,18 @@
 
                     <!-- Password -->
                     <div class="mb-4">
-                        <label class="form-label">Password</label>
+                        <label class="form-label">Пароль</label>
                         {{ form.password }}
                     </div>
 
                     <!-- Кнопки -->
                     <div class="d-flex justify-content-between align-items-center">
                         <a href="{% url 'field-crops' %}" class="btn btn-sm btn-outline-secondary">
-                            Cancel
+                            Отмена
                         </a>
 
                         <button type="submit" class="btn btn-success">
-                            Create Worker
+                            Создать работника
                         </button>
                     </div>
 

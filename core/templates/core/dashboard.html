@@ -1,13 +1,13 @@
 {% extends "base.html" %}
 {% load formatters %}
 
-{% block title %}Dashboard | Agro System{% endblock %}
+{% block title %}Панель управления | Agro System{% endblock %}
 
 {% block content %}
 <div class="d-flex justify-content-between align-items-start mb-3 flex-wrap gap-2">
     <div>
-        <h1 class="h3 mb-1">Dashboard</h1>
-        <p class="text-muted mb-0">Reporting overview for your fields and operations.</p>
+        <h1 class="h3 mb-1">Панель управления</h1>
+        <p class="text-muted mb-0">Обзор отчетов по вашим полям и операциям.</p>
     </div>
     <!-- Currency toggle -->
     <div class="btn-group">
@@ -27,11 +27,11 @@
             <!-- Quick filters -->
             <div class="btn-group btn-group-sm">
                 <a href="?period=all&currency={{ currency }}"
-                   class="btn {% if period == 'all' %}btn-primary{% else %}btn-outline-secondary{% endif %}">All time</a>
+                   class="btn {% if period == 'all' %}btn-primary{% else %}btn-outline-secondary{% endif %}">Все время</a>
                 <a href="?period=month&currency={{ currency }}"
-                   class="btn {% if period == 'month' %}btn-primary{% else %}btn-outline-secondary{% endif %}">This month</a>
+                   class="btn {% if period == 'month' %}btn-primary{% else %}btn-outline-secondary{% endif %}">Этот месяц</a>
                 <a href="?period=year&currency={{ currency }}"
-                   class="btn {% if period == 'year' %}btn-primary{% else %}btn-outline-secondary{% endif %}">This year</a>
+                   class="btn {% if period == 'year' %}btn-primary{% else %}btn-outline-secondary{% endif %}">Этот год</a>
             </div>
 
             <div class="vr"></div>
@@ -40,7 +40,7 @@
             {% if years %}
             <select name="year" class="form-select form-select-sm" style="width: auto; min-width: 110px;"
                     onchange="this.form.elements['period'].value='year'; this.form.submit()">
-                <option value="">— Year —</option>
+                <option value="">— Год —</option>
                 {% for y in years %}
                 <option value="{{ y }}" {% if year == y|stringformat:"s" %}selected{% endif %}>{{ y }}</option>
                 {% endfor %}
@@ -51,14 +51,14 @@
             <div class="vr"></div>
 
             <!-- Custom date range -->
-            <small class="text-muted">Custom:</small>
+            <small class="text-muted">Пользовательский:</small>
             <input type="date" name="from_date" value="{{ from_date }}"
                    class="form-control form-control-sm" style="width:140px;" placeholder="From">
             <input type="date" name="to_date" value="{{ to_date }}"
                    class="form-control form-control-sm" style="width:140px;" placeholder="To">
-            <button type="submit" class="btn btn-sm btn-outline-primary">Apply</button>
+            <button type="submit" class="btn btn-sm btn-outline-primary">Применить</button>
             {% if from_date or to_date %}
-            <a href="?period=all&currency={{ currency }}" class="btn btn-sm btn-outline-secondary">✕ Clear</a>
+            <a href="?period=all&currency={{ currency }}" class="btn btn-sm btn-outline-secondary">✕ Очистить</a>
             {% endif %}
         </form>
     </div>
@@ -70,7 +70,7 @@
     <div class="col-md-4">
         <div class="card border-0 shadow-sm h-100">
             <div class="card-body">
-                <p class="text-muted text-uppercase small mb-2">Total Cost</p>
+                <p class="text-muted text-uppercase small mb-2">Общая стоимость</p>
 
                 <h2 class="h3 mb-0">
                     {% if currency == "usd" %}
@@ -94,7 +94,7 @@
     <div class="col-md-4">
         <div class="card border-0 shadow-sm h-100">
             <div class="card-body">
-                <p class="text-muted text-uppercase small mb-2">Fields Count</p>
+                <p class="text-muted text-uppercase small mb-2">Количество полей</p>
                 <h2 class="h3 mb-0">{{ dashboard.fields_count }}</h2>
             </div>
         </div>
@@ -103,7 +103,7 @@
     <div class="col-md-4">
         <div class="card border-0 shadow-sm h-100">
             <div class="card-body">
-                <p class="text-muted text-uppercase small mb-2">Operations Count</p>
+                <p class="text-muted text-uppercase small mb-2">Количество операций</p>
                 <h2 class="h3 mb-0">{{ dashboard.operations_count }}</h2>
             </div>
         </div>
@@ -114,7 +114,7 @@
     <div class="col-md-6">
         <div class="card border-0 shadow-sm h-100">
             <div class="card-body">
-                <p class="text-muted text-uppercase small mb-2">My Total Cost</p>
+                <p class="text-muted text-uppercase small mb-2">Моя общая стоимость</p>
                 <h2 class="h3 mb-0">
                     {% if currency == "usd" %}
                     {{ dashboard.total_cost|money_usd }}
@@ -129,7 +129,7 @@
     <div class="col-md-6">
         <div class="card border-0 shadow-sm h-100">
             <div class="card-body">
-                <p class="text-muted text-uppercase small mb-2">My Operations</p>
+                <p class="text-muted text-uppercase small mb-2">Мои операции</p>
                 <h2 class="h3 mb-0">{{ dashboard.operations_count }}</h2>
             </div>
         </div>
@@ -144,14 +144,14 @@
     <div class="col-lg-4">
         <div class="card border-0 shadow-sm h-100">
             <div class="card-body d-flex flex-column">
-                <p class="text-muted text-uppercase small mb-2">Cost by Resource</p>
+                <p class="text-muted text-uppercase small mb-2">Стоимость по ресурсам</p>
                 <div class="flex-grow-1 position-relative" style="min-height: 280px;">
                     <canvas id="costResourceChart" class="dashboard-chart"></canvas>
                 </div>
                 <div class="mt-3 d-flex justify-content-between align-items-start">
                     <div id="resourceTopList"></div>
                     <button class="btn btn-sm btn-outline-secondary" onclick="openResourceModal()">
-                        View all
+                        Посмотреть все
                     </button>
                 </div>
             </div>
@@ -161,7 +161,7 @@
     <div class="col-lg-4">
         <div class="card border-0 shadow-sm h-100">
             <div class="card-body d-flex flex-column">
-                <p class="text-muted text-uppercase small mb-2">Cost by Type</p>
+                <p class="text-muted text-uppercase small mb-2">Стоимость по типу</p>
                 <div class="flex-grow-1 position-relative" style="min-height: 280px;">
                     <canvas id="costTypeChart" class="dashboard-chart"></canvas>
                 </div>
@@ -172,7 +172,7 @@
     <div class="col-lg-4">
         <div class="card border-0 shadow-sm h-100">
             <div class="card-body d-flex flex-column">
-                <p class="text-muted text-uppercase small mb-2">Operations Over Time</p>
+                <p class="text-muted text-uppercase small mb-2">Операции по времени</p>
                 <div class="flex-grow-1 position-relative" style="min-height: 280px;">
                     <canvas id="operationsChart" class="dashboard-chart"></canvas>
                 </div>
@@ -184,7 +184,7 @@
 
 <div id="resources-table" class="card border-0 shadow-sm">
     <div class="card-header d-flex justify-content-between align-items-center">
-        <h2 class="h5 mb-0">Resources</h2>
+        <h2 class="h5 mb-0">Ресурсы</h2>
 
         <div class="d-flex align-items-center gap-3">
             <small class="text-muted">
@@ -192,7 +192,7 @@
             </small>
 
             <a href="{% url 'update-rate' %}" class="btn btn-sm btn-outline-secondary">
-                🔄 Update rate
+                🔄 Обновить курс
             </a>
             
             
@@ -206,7 +206,7 @@
                         <th style="width: 40%;">
                             <a href="?sort=name&order={{ next_order }}&{{ query_params }}#resources-table"
                                 class="text-decoration-none text-body d-flex align-items-center gap-1">
-                                Name
+                                Название
                                 {% include "components/sort_icon.html" with current_sort=sort current_order=order column="name" %}
                             </a>
                         </th>
@@ -214,7 +214,7 @@
                         <th class="text-end" style="width: 25%;">
                             <a href="?sort=quantity&order={{ next_order }}&{{ query_params }}#resources-table"
                                 class="text-decoration-none text-body d-flex justify-content-center align-items-center gap-1">
-                                Quantity
+                                Количество
                                 {% include "components/sort_icon.html" with current_sort=sort current_order=order column="quantity" %}
                             </a>
                         </th>
@@ -222,7 +222,7 @@
                         <th class="text-end" style="width: 35%;">
                             <a href="?sort=cost&order={{ next_order }}&{{ query_params }}#resources-table"
                                 class="text-decoration-none text-body d-flex justify-content-center align-items-center gap-1">
-                                Cost
+                                Стоимость
                                 {% include "components/sort_icon.html" with current_sort=sort current_order=order column="cost" %}
                             </a>
                         </th>
@@ -243,7 +243,7 @@
                     </tr>
                     {% empty %}
                     <tr>
-                        <td colspan="3" class="text-center text-muted py-4">No resources found.</td>
+                        <td colspan="3" class="text-center text-muted py-4">Ресурсы не найдены.</td>
                     </tr>
                     {% endfor %}
                 </tbody>
@@ -257,12 +257,12 @@
   <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-lg">
     <div class="modal-content border-0 shadow">
       <div class="modal-header">
-        <h5 class="modal-title" id="resourcesModalLabel">All Resources</h5>
+        <h5 class="modal-title" id="resourcesModalLabel">Все ресурсы</h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>
       <div class="modal-body p-0">
         <div class="p-3 border-bottom">
-          <input type="text" id="resourceSearchInput" class="form-control" placeholder="Search by name..." oninput="renderModalResources(this.value)">
+          <input type="text" id="resourceSearchInput" class="form-control" placeholder="Поиск по названию..." oninput="renderModalResources(this.value)">
         </div>
         <div class="list-group list-group-flush" id="modalResourcesList"></div>
       </div>

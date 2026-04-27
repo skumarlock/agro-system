@@ -1,19 +1,20 @@
 {% extends "base.html" %}
 
-{% block title %}My Fields | Agro System{% endblock %}
+{% block title %}Мои поля | Agro System{% endblock %}
 
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
     <div>
-        <h1 class="h3 mb-1">Fields</h1>
-        <p class="text-muted mb-0">Your farm fields and their current status.</p>
+        <h1 class="h3 mb-1">Поля</h1>
+        <p class="text-muted mb-0">Ваши поля и их текущий статус.</p>
     </div>
     {% if is_owner %}
     <div class="d-flex gap-2 flex-wrap">
-        <a href="{% url 'create-season' %}?next=fields-list" class="btn btn-sm btn-outline-primary">+ Season</a>
-        <a href="{% url 'create-operation' %}" class="btn btn-sm btn-success">+ Operation</a>
-        <a href="{% url 'create-worker' %}" class="btn btn-sm btn-outline-secondary">+ Worker</a>
-        <a href="{% url 'invite-agronomist' %}" class="btn btn-sm btn-outline-secondary">+ Agronomist</a>
+        <a href="{% url 'create-season' %}?next=fields-list" class="btn btn-sm btn-outline-primary">+ Сезон</a>
+        <a href="{% url 'create-operation' %}" class="btn btn-sm btn-outline-primary">+ Операция</a>
+        <a href="{% url 'my-agronomists' %}" class="btn btn-sm btn-outline-secondary">Мои агрономы</a>
+        <a href="{% url 'invite-agronomist' %}" class="btn btn-sm btn-outline-secondary">+ Агроном</a>
+        <a href="{% url 'create-worker' %}" class="btn btn-sm btn-outline-secondary">+ Рабочий</a>
     </div>
     {% endif %}
 </div>
@@ -27,14 +28,14 @@
                 <div class="d-flex justify-content-between align-items-start mb-2">
                     <h5 class="card-title mb-0 fw-semibold">{{ item.field.name }}</h5>
                     {% if item.active_season %}
-                    <span class="badge bg-success-subtle text-success border border-success-subtle">Active</span>
+                    <span class="badge bg-success-subtle text-success border border-success-subtle">Активный</span>
                     {% else %}
-                    <span class="badge bg-secondary-subtle text-secondary">No active season</span>
+                    <span class="badge bg-secondary-subtle text-secondary">Нет активного сезона</span>
                     {% endif %}
                 </div>
                 <p class="text-muted small mb-1">📍 {{ item.field.location }}</p>
                 <p class="text-muted small mb-2">
-                    📐 {{ item.field.area }} ha &nbsp;·&nbsp;
+                    📐 {{ item.field.area }} га &nbsp;·&nbsp;
                     🌱 {{ item.active_crop_count }} active crop{% if item.active_crop_count != 1 %}s{% endif %}
                     <span class="text-muted">({{ item.total_crop_count }} total)</span>
                 </p>
@@ -52,7 +53,7 @@
             </div>
             <div class="card-footer bg-transparent border-0 pt-0">
                 <a href="{% url 'field-detail' item.field.pk %}"
-                   class="btn btn-outline-primary btn-sm w-100">View Field →</a>
+                   class="btn btn-outline-primary btn-sm w-100">Посмотреть поле →</a>
             </div>
         </div>
     </div>
@@ -60,7 +61,7 @@
 </div>
 {% else %}
 <div class="text-center py-5 text-muted">
-    <p class="mb-0">No fields found. Contact your administrator to add fields.</p>
+    <p class="mb-0">Поля не найдены. Свяжитесь с вашим администратором, чтобы добавить поля.</p>
 </div>
 {% endif %}
 
