@@ -4,115 +4,197 @@
 {% block title %}Отчет по сезону | Agro System{% endblock %}
 
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <div>
-        <h1 class="h3 mb-1">Отчет по сезону</h1>
-        <p class="text-muted mb-0">{{ report.season.name }} {{ report.season.year }}</p>
-    </div>
-    {% if can_manage_seasons %}
-    <div class="d-flex gap-2">
-        <a href="{% url 'edit-season' report.season.id %}?next={{ request.get_full_path|urlencode }}" class="btn btn-outline-secondary">Редактировать сезон</a>
-        <form method="post" action="{% url 'delete-season' report.season.id %}" onsubmit="return confirm('Удалить этот сезон?');">
-            {% csrf_token %}
-            <input type="hidden" name="next" value="{% url 'fields-list' %}">
-            <button type="submit" class="btn btn-outline-danger">Удалить сезон</button>
-        </form>
-    </div>
-    {% endif %}
-</div>
+<style>
+    .report-shell {
+        display: grid;
+        gap: 1rem;
+    }
 
-<div class="row g-4 mb-4">
-    <div class="col-md-4">
-        <div class="card border-0 shadow-sm h-100">
-            <div class="card-body">
-                <p class="text-muted text-uppercase small mb-2">Общая стоимость</p>
-                <h2 class="h3 mb-0">
-                    {% if can_view_finances %}{{ report.total_cost|money }}{% else %}—{% endif %}
-                </h2>
+    .report-hero {
+        border: 1px solid var(--bs-border-color);
+        border-radius: 1rem;
+        background: var(--bs-body-bg);
+        box-shadow: var(--bs-box-shadow-sm);
+        padding: 1.25rem;
+    }
+
+    .report-meta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: .5rem;
+        margin-top: .75rem;
+    }
+
+    .report-meta-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: .35rem;
+        padding: .4rem .7rem;
+        border-radius: 999px;
+        border: 1px solid var(--bs-border-color);
+        background: var(--bs-tertiary-bg);
+        color: var(--bs-secondary-color);
+        font-size: .875rem;
+    }
+
+    .report-actions {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+        gap: .5rem;
+    }
+
+    .report-stat-card,
+    .report-section-card {
+        border: 1px solid var(--bs-border-color);
+        border-radius: 1rem;
+        background: var(--bs-body-bg);
+        box-shadow: var(--bs-box-shadow-sm);
+        height: 100%;
+    }
+
+    .report-stat-value {
+        font-size: 1.6rem;
+        font-weight: 600;
+        line-height: 1.2;
+    }
+
+    @media (max-width: 991.98px) {
+        .report-actions {
+            justify-content: flex-start;
+        }
+    }
+</style>
+
+<div class="report-shell">
+    <section class="report-hero">
+        <div class="d-flex justify-content-between align-items-start flex-wrap gap-3">
+            <div>
+                <nav aria-label="breadcrumb" class="mb-2">
+                    <ol class="breadcrumb mb-0 small">
+                        <li class="breadcrumb-item"><a href="{% url 'fields-list' %}">Поля</a></li>
+                        <li class="breadcrumb-item active">{{ report.season.name }} {{ report.season.year }}</li>
+                    </ol>
+                </nav>
+                <h1 class="h3 mb-1">Отчет по сезону</h1>
+                <p class="text-muted mb-0">Сводка по полям, операциям и ресурсам внутри выбранного сезона.</p>
+                <div class="report-meta">
+                    <span class="report-meta-chip">Сезон: {{ report.season.name }} {{ report.season.year }}</span>
+                    <span class="report-meta-chip">Полей: {{ report.fields_count }}</span>
+                    <span class="report-meta-chip">Операций: {{ report.operations_count }}</span>
+                </div>
+            </div>
+            <div class="report-actions">
+                {% if can_manage_seasons %}
+                <a href="{% url 'edit-season' report.season.id %}?next={{ request.get_full_path|urlencode }}" class="btn btn-outline-secondary">Редактировать</a>
+                <form method="post" action="{% url 'delete-season' report.season.id %}" onsubmit="return confirm('Удалить этот сезон?');">
+                    {% csrf_token %}
+                    <input type="hidden" name="next" value="{% url 'fields-list' %}">
+                    <button type="submit" class="btn btn-outline-danger">Удалить</button>
+                </form>
+                {% endif %}
+            </div>
+        </div>
+    </section>
+
+    <div class="row g-3">
+        <div class="col-lg-4">
+            <div class="report-stat-card">
+                <div class="card-body">
+                    <p class="text-muted text-uppercase small mb-2">Общая стоимость</p>
+                    <div class="report-stat-value">
+                        {% if can_view_finances %}{{ report.total_cost|money_short }}{% else %}—{% endif %}
+                    </div>
+                    {% if can_view_finances %}
+                    <small class="text-muted">{{ report.total_cost|money }}</small>
+                    {% else %}
+                    <small class="text-muted">Финансовые данные скрыты</small>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-4">
+            <div class="report-stat-card">
+                <div class="card-body">
+                    <p class="text-muted text-uppercase small mb-2">Количество полей</p>
+                    <div class="report-stat-value">{{ report.fields_count }}</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-4">
+            <div class="report-stat-card">
+                <div class="card-body">
+                    <p class="text-muted text-uppercase small mb-2">Количество операций</p>
+                    <div class="report-stat-value">{{ report.operations_count }}</div>
+                </div>
             </div>
         </div>
     </div>
-    <div class="col-md-4">
-        <div class="card border-0 shadow-sm h-100">
-            <div class="card-body">
-                <p class="text-muted text-uppercase small mb-2">Количество полей</p>
-                <h2 class="h3 mb-0">{{ report.fields_count }}</h2>
+
+    <section class="report-section-card" id="resources-table">
+        <div class="card-header bg-body border-0 pt-3">
+            <h2 class="h5 mb-0">Ресурсы</h2>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead>
+                        <tr>
+                            <th style="width: 40%;">
+                                <a href="?sort=name&order={{ next_order }}&{{ query_params }}#resources-table"
+                                    class="text-decoration-none text-body d-flex align-items-center gap-1">
+                                    Название
+                                    {% include "components/sort_icon.html" with current_sort=sort current_order=order column="name" %}
+                                </a>
+                            </th>
+
+                            <th style="width: 25%;">
+                                <a href="?sort=quantity&order={{ next_order }}&{{ query_params }}#resources-table"
+                                    class="text-decoration-none text-body d-flex justify-content-center align-items-center gap-1">
+                                    Количество
+                                    {% include "components/sort_icon.html" with current_sort=sort current_order=order column="quantity" %}
+                                </a>
+                            </th>
+
+                            <th style="width: 35%;">
+                                {% if can_view_finances %}
+                                <a href="?sort=cost&order={{ next_order }}&{{ query_params }}#resources-table"
+                                    class="text-decoration-none text-body d-flex justify-content-center align-items-center gap-1">
+                                    Стоимость
+                                    {% include "components/sort_icon.html" with current_sort=sort current_order=order column="cost" %}
+                                </a>
+                                {% else %}
+                                <span class="d-flex justify-content-center">Стоимость</span>
+                                {% endif %}
+                            </th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for resource in report.resources %}
+                        <tr class="{% if resource.is_top %}table-warning{% endif %}">
+                            <td>{{ resource.name|title }}</td>
+                            <td class="text-center">{{ resource.quantity }}</td>
+                            <td class="text-center" style="min-width: 150px; white-space: nowrap;">
+                                {% if can_view_finances %}
+                                {% if currency == "usd" %}
+                                {{ resource.cost|money_usd }}
+                                {% else %}
+                                {{ resource.cost|money }}
+                                {% endif %}
+                                {% else %}
+                                —
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="3" class="text-center text-muted py-4">Ресурсы не найдены.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
             </div>
         </div>
-    </div>
-    <div class="col-md-4">
-        <div class="card border-0 shadow-sm h-100">
-            <div class="card-body">
-                <p class="text-muted text-uppercase small mb-2">Количество операций</p>
-                <h2 class="h3 mb-0">{{ report.operations_count }}</h2>
-            </div>
-        </div>
-    </div>
-</div>
-
-<div class="card border-0 shadow-sm" id="resources-table">
-    <div class="card-header">
-        <h2 class="h5 mb-0">Ресурсы</h2>
-    </div>
-    <div class="card-body p-0">
-        <div class="table-responsive">
-            <table class="table table-hover mb-0">
-                <thead style="position: sticky; top: 0; z-index: 2;">
-                    <tr>
-                        <th style="width: 40%;">
-                            <a href="?sort=name&order={{ next_order }}&{{ query_params }}#resources-table"
-                                class="text-decoration-none text-body d-flex align-items-center gap-1">
-                                Название
-                                {% include "components/sort_icon.html" with current_sort=sort current_order=order column="name" %}
-                            </a>
-                        </th>
-
-                        <th style="width: 25%;">
-                            <a href="?sort=quantity&order={{ next_order }}&{{ query_params }}#resources-table"
-                                class="text-decoration-none text-body d-flex justify-content-center align-items-center gap-1">
-                                Количество
-                                {% include "components/sort_icon.html" with current_sort=sort current_order=order column="quantity" %}
-                            </a>
-                        </th>
-
-                        <th style="width: 35%;">
-                            {% if can_view_finances %}
-                            <a href="?sort=cost&order={{ next_order }}&{{ query_params }}#resources-table"
-                                class="text-decoration-none text-body d-flex justify-content-center align-items-center gap-1">
-                                Стоимость
-                                {% include "components/sort_icon.html" with current_sort=sort current_order=order column="cost" %}
-                            </a>
-                            {% else %}
-                            <span class="d-flex justify-content-center">Стоимость</span>
-                            {% endif %}
-                        </th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for resource in report.resources %}
-                    <tr class="{% if resource.is_top %}table-warning{% endif %}">
-                        <td>{{ resource.name|title }}</td>
-                        <td class="text-center">{{ resource.quantity }}</td>
-                        <td class="text-center" style="min-width: 150px; white-space: nowrap;">
-                            {% if can_view_finances %}
-                            {% if currency == "usd" %}
-                            {{ resource.cost|money_usd }}
-                            {% else %}
-                            {{ resource.cost|money }}
-                            {% endif %}
-                            {% else %}
-                            —
-                            {% endif %}
-                        </td>
-                    </tr>
-                    {% empty %}
-                    <tr>
-                        <td colspan="3" class="text-center text-muted py-4">Ресурсы не найдены.</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
-    </div>
+    </section>
 </div>
 {% endblock %}

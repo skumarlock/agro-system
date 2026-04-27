@@ -4,135 +4,237 @@
 {% block title %}Детали культуры | Agro System{% endblock %}
 
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <div>
-        <h1 class="h3 mb-1">Детали культуры</h1>
-        <p class="text-muted mb-0">{{ report.field.name }} / {{ report.crop.name }}</p>
-    </div>
-    <div class="d-flex gap-2">
-        {% if can_manage_field_crops %}
-        <a href="{% url 'edit-field-crop' report.field_crop_id %}?next={{ request.get_full_path|urlencode }}" class="btn btn-outline-secondary">Редактировать</a>
-        <form method="post" action="{% url 'delete-field-crop' report.field_crop_id %}" onsubmit="return confirm('Удалить эту культуру из поля?');">
-            {% csrf_token %}
-            <input type="hidden" name="next" value="{% url 'field-detail' report.field.id %}?season={{ report.season.id }}">
-            <button type="submit" class="btn btn-outline-danger">Удалить</button>
-        </form>
-        {% endif %}
-        <a href="{% url 'field-crops' %}" class="btn btn-outline-secondary">Назад к списку</a>
-    </div>
-</div>
+<style>
+    .detail-shell {
+        display: grid;
+        gap: 1rem;
+    }
 
-<div class="row g-4 mb-4">
-    <div class="col-lg-8">
-        <div class="card border-0 shadow-sm h-100">
-            <div class="card-body">
-                <dl class="row mb-0">
-                    <dt class="col-sm-4">Поле</dt>
-                    <dd class="col-sm-8">{{ report.field.name }}</dd>
+    .detail-hero {
+        border: 1px solid var(--bs-border-color);
+        border-radius: 1rem;
+        background: var(--bs-body-bg);
+        box-shadow: var(--bs-box-shadow-sm);
+        padding: 1.25rem;
+    }
 
-                    <dt class="col-sm-4">Культура</dt>
-                    <dd class="col-sm-8">{{ report.crop.name }}</dd>
+    .detail-meta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: .5rem;
+        margin-top: .75rem;
+    }
 
-                    <dt class="col-sm-4">Сезон</dt>
-                    <dd class="col-sm-8">
-                        <a href="{% url 'season-report' report.season.id %}" class="link-success text-decoration-none">
-                            {{ report.season.name }} {{ report.season.year }}
-                        </a>
-                    </dd>
+    .detail-meta-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: .35rem;
+        padding: .4rem .7rem;
+        border-radius: 999px;
+        border: 1px solid var(--bs-border-color);
+        background: var(--bs-tertiary-bg);
+        color: var(--bs-secondary-color);
+        font-size: .875rem;
+    }
 
-                    <dt class="col-sm-4">Статус</dt>
-                    <dd class="col-sm-8">
+    .detail-actions {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+        gap: .5rem;
+    }
+
+    .detail-section-card {
+        border: 1px solid var(--bs-border-color);
+        border-radius: 1rem;
+        background: var(--bs-body-bg);
+        box-shadow: var(--bs-box-shadow-sm);
+    }
+
+    .detail-stat-card {
+        border: 1px solid var(--bs-border-color);
+        border-radius: 1rem;
+        background: var(--bs-body-bg);
+        box-shadow: var(--bs-box-shadow-sm);
+        height: 100%;
+    }
+
+    .detail-stat-value {
+        font-size: 1.6rem;
+        font-weight: 600;
+        line-height: 1.2;
+    }
+
+    @media (max-width: 991.98px) {
+        .detail-actions {
+            justify-content: flex-start;
+        }
+    }
+</style>
+
+<div class="detail-shell">
+    <section class="detail-hero">
+        <div class="d-flex justify-content-between align-items-start flex-wrap gap-3">
+            <div>
+                <nav aria-label="breadcrumb" class="mb-2">
+                    <ol class="breadcrumb mb-0 small">
+                        <li class="breadcrumb-item"><a href="{% url 'fields-list' %}">Поля</a></li>
+                        <li class="breadcrumb-item"><a href="{% url 'field-detail' report.field.id %}?season={{ report.season.id }}">{{ report.field.name }}</a></li>
+                        <li class="breadcrumb-item active">{{ report.crop.name }}</li>
+                    </ol>
+                </nav>
+                <h1 class="h3 mb-1">{{ report.crop.name }}</h1>
+                <p class="text-muted mb-0">Карточка культуры с сезоном, статусом, ресурсами и итоговыми показателями.</p>
+                <div class="detail-meta">
+                    <span class="detail-meta-chip">Поле: {{ report.field.name }}</span>
+                    <span class="detail-meta-chip">Сезон: {{ report.season.name }} {{ report.season.year }}</span>
+                    <span class="detail-meta-chip">
+                        Статус:
                         {% if report.status == status_harvested %}
-                        <span class="badge bg-success">Собрано</span>
+                        Собрано
                         {% elif report.status == status_active %}
-                        <span class="badge bg-primary">Активно</span>
+                        Активно
                         {% else %}
-                        <span class="badge bg-secondary">Запланировано</span>
+                        Запланировано
                         {% endif %}
-                    </dd>
-                </dl>
+                    </span>
+                </div>
+            </div>
+            <div class="detail-actions">
+                {% if can_manage_field_crops %}
+                <a href="{% url 'edit-field-crop' report.field_crop_id %}?next={{ request.get_full_path|urlencode }}" class="btn btn-outline-secondary">Редактировать</a>
+                <form method="post" action="{% url 'delete-field-crop' report.field_crop_id %}" onsubmit="return confirm('Удалить эту культуру из поля?');">
+                    {% csrf_token %}
+                    <input type="hidden" name="next" value="{% url 'field-detail' report.field.id %}?season={{ report.season.id }}">
+                    <button type="submit" class="btn btn-outline-danger">Удалить</button>
+                </form>
+                {% endif %}
+                <a href="{% url 'field-detail' report.field.id %}?season={{ report.season.id }}" class="btn btn-outline-primary">Назад к полю</a>
             </div>
         </div>
-    </div>
-    <div class="col-lg-4">
-        <div class="card border-0 shadow-sm mb-4">
-            <div class="card-body">
-                <p class="text-muted text-uppercase small mb-2">Операции</p>
-                <h2 class="h3 mb-0">{{ report.operations_count }}</h2>
-            </div>
-        </div>
-        {% if report.total_cost is not None %}
-        <div class="card border-0 shadow-sm mb-4">
-            <div class="card-body">
-                <p class="text-muted text-uppercase small mb-2">Общая стоимость</p>
-                <h2 class="h3 mb-0">{{ report.total_cost|money_short }} </h2>
-                <small class="text-muted">({{ report.total_cost|money }})</small>
-            </div>
-        </div>
-        <div class="card border-0 shadow-sm">
-            <div class="card-body">
-                <p class="text-muted text-uppercase small mb-2">Стоимость на гектар</p>
-                <h2 class="h3 mb-0">{{ report.cost_per_hectare|money_short }} сум/га</h2>
-                <small class="text-muted">({{ report.cost_per_hectare|money }})</small>
-            </div>
-        </div>
-        {% endif %}
-    </div>
-</div>
+    </section>
 
-<div class="card border-0 shadow-sm" id="resources-table">
-    <div class="card-header bg-body">
-        <h2 class="h5 mb-0">Ресурсы</h2>
-    </div>
-    <div class="card-body p-0">
-        <div class="table-responsive">
-            <table class="table table-hover mb-0">
-                <thead>
-                    <tr class="align-middle">
-                        <th>
-                            <a href="?sort=name&order={{ next_order }}&{{ query_params }}#resources-table"
-                                class="text-decoration-none text-body d-flex align-items-center gap-1">
-                                Название
-                                {% include "components/sort_icon.html" with current_sort=sort current_order=order column="name" %}
-                            </a>
-                        </th>
-
-                        <th class="text-center">
-                            <a href="?sort=quantity&order={{ next_order }}&{{ query_params }}#resources-table"
-                                class="text-decoration-none text-body d-flex justify-content-center align-items-center gap-1">
-                                Количество
-                                {% include "components/sort_icon.html" with current_sort=sort current_order=order column="quantity" %}
-                            </a>
-                        </th>
-
-                        {% if report.total_cost is not None %}
-                        <th class="text-center">
-                            <a href="?sort=cost&order={{ next_order }}&{{ query_params }}#resources-table"
-                                class="text-decoration-none text-body d-flex justify-content-left align-items-center gap-1">
-                                Стоимость
-                                {% include "components/sort_icon.html" with current_sort=sort current_order=order column="cost" %}
-                            </a>
-                        </th>
-                        {% endif %}
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for r in report.resources %}
-                    <tr class="align-middle">
-                        <td>{{ r.name }}</td>
-                        <td class="text-center">{{ r.quantity }}</td>
-                        {% if report.total_cost is not None %}
-                        <td class="text-body">{{ r.cost|money }}</td>
-                        {% endif %}
-                    </tr>
-                    {% empty %}
-                    <tr class="align-middle">
-                        <td colspan="{% if report.total_cost is not None %}3{% else %}2{% endif %}" class="text-center text-muted">Ресурсы не найдены</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+    <div class="row g-3">
+        <div class="col-lg-4">
+            <div class="detail-stat-card">
+                <div class="card-body">
+                    <p class="text-muted text-uppercase small mb-2">Операции</p>
+                    <div class="detail-stat-value">{{ report.operations_count }}</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-4">
+            <div class="detail-stat-card">
+                <div class="card-body">
+                    <p class="text-muted text-uppercase small mb-2">Общая стоимость</p>
+                    <div class="detail-stat-value">
+                        {% if report.total_cost is not None %}{{ report.total_cost|money_short }}{% else %}—{% endif %}
+                    </div>
+                    {% if report.total_cost is not None %}
+                    <small class="text-muted">({{ report.total_cost|money }})</small>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-4">
+            <div class="detail-stat-card">
+                <div class="card-body">
+                    <p class="text-muted text-uppercase small mb-2">Стоимость на гектар</p>
+                    <div class="detail-stat-value">
+                        {% if report.total_cost is not None %}{{ report.cost_per_hectare|money_short }}{% else %}—{% endif %}
+                    </div>
+                    {% if report.total_cost is not None %}
+                    <small class="text-muted">{{ report.cost_per_hectare|money }} сум/га</small>
+                    {% endif %}
+                </div>
+            </div>
         </div>
     </div>
+
+    <section class="detail-section-card">
+        <div class="card-body">
+            <dl class="row mb-0">
+                <dt class="col-sm-3">Поле</dt>
+                <dd class="col-sm-9">{{ report.field.name }}</dd>
+
+                <dt class="col-sm-3">Культура</dt>
+                <dd class="col-sm-9">{{ report.crop.name }}</dd>
+
+                <dt class="col-sm-3">Сезон</dt>
+                <dd class="col-sm-9">
+                    <a href="{% url 'season-report' report.season.id %}" class="link-success text-decoration-none">
+                        {{ report.season.name }} {{ report.season.year }}
+                    </a>
+                </dd>
+
+                <dt class="col-sm-3">Статус</dt>
+                <dd class="col-sm-9">
+                    {% if report.status == status_harvested %}
+                    <span class="badge bg-success">Собрано</span>
+                    {% elif report.status == status_active %}
+                    <span class="badge bg-primary">Активно</span>
+                    {% else %}
+                    <span class="badge bg-secondary">Запланировано</span>
+                    {% endif %}
+                </dd>
+            </dl>
+        </div>
+    </section>
+
+    <section class="detail-section-card" id="resources-table">
+        <div class="card-header bg-body border-0 pt-3">
+            <h2 class="h5 mb-0">Ресурсы</h2>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead>
+                        <tr class="align-middle">
+                            <th>
+                                <a href="?sort=name&order={{ next_order }}&{{ query_params }}#resources-table"
+                                    class="text-decoration-none text-body d-flex align-items-center gap-1">
+                                    Название
+                                    {% include "components/sort_icon.html" with current_sort=sort current_order=order column="name" %}
+                                </a>
+                            </th>
+
+                            <th class="text-center">
+                                <a href="?sort=quantity&order={{ next_order }}&{{ query_params }}#resources-table"
+                                    class="text-decoration-none text-body d-flex justify-content-center align-items-center gap-1">
+                                    Количество
+                                    {% include "components/sort_icon.html" with current_sort=sort current_order=order column="quantity" %}
+                                </a>
+                            </th>
+
+                            {% if report.total_cost is not None %}
+                            <th class="text-center">
+                                <a href="?sort=cost&order={{ next_order }}&{{ query_params }}#resources-table"
+                                    class="text-decoration-none text-body d-flex justify-content-start align-items-center gap-1">
+                                    Стоимость
+                                    {% include "components/sort_icon.html" with current_sort=sort current_order=order column="cost" %}
+                                </a>
+                            </th>
+                            {% endif %}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for r in report.resources %}
+                        <tr class="align-middle">
+                            <td>{{ r.name }}</td>
+                            <td class="text-center">{{ r.quantity }}</td>
+                            {% if report.total_cost is not None %}
+                            <td class="text-body">{{ r.cost|money }}</td>
+                            {% endif %}
+                        </tr>
+                        {% empty %}
+                        <tr class="align-middle">
+                            <td colspan="{% if report.total_cost is not None %}3{% else %}2{% endif %}" class="text-center text-muted py-4">Ресурсы не найдены</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </section>
 </div>
 {% endblock %}

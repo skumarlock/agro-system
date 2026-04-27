@@ -118,6 +118,12 @@ def can_manage_field_crops_for_owner(user, owner):
     return bool(link and link.can_manage_field_crops)
 
 
+def _append_fragment(url, fragment):
+    if not url or "#" in url:
+        return url
+    return f"{url}#{fragment}"
+
+
 def _get_manageable_season_or_404(request, pk):
     qs = Season.objects.all()
     if request.user.role == "owner":
@@ -619,7 +625,7 @@ def delete_operation(request, pk):
     next_url = request.POST.get("next") or reverse("field-detail", args=[op.field_crop.field_id])
     op.delete()
     messages.success(request, "Operation deleted.")
-    return redirect(next_url)
+    return redirect(_append_fragment(next_url, "operations-section"))
 
 @login_required
 def my_operations_view(request):
