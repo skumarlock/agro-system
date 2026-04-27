@@ -50,9 +50,6 @@
                     <li class="nav-item">
                         <a class="nav-link" href="{% url 'fields-list' %}">Поля</a>
                     </li>
-                    <li class="nav-item">
-                        <a class="nav-link fw-semibold" href="{% url 'create-operation' %}">+ Операция</a>
-                    </li>
                     {% endif %}
 
                     {% if user.role == "agronomist" %}

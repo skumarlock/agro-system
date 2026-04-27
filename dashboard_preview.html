@@ -1,9 +1,83 @@
-{% extends "base.html" %}
-{% load formatters %}
 
-{% block title %}Панель управления | Agro System{% endblock %}
 
-{% block content %}
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Панель управления | Agro System</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="file:///D:/diploma/agro_system/core/static/css/main.css">
+    <script>
+        (function () {
+            const savedTheme = localStorage.getItem("theme") || "light";
+            document.documentElement.dataset.bsTheme = savedTheme;
+        })();
+    </script>
+</head>
+
+<body>
+    <nav class="navbar navbar-expand-lg fixed-top app-navbar">
+        <div class="container">
+
+            <!-- Brand → role-aware home -->
+            
+                
+                    <a class="navbar-brand fw-semibold" href="/dashboard/">🌾 Agro</a>
+                
+            
+
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse"
+                    data-bs-target="#navbarNav" aria-controls="navbarNav"
+                    aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav me-auto">
+
+                    
+                    <li class="nav-item">
+                        <a class="nav-link" href="/dashboard/">Панель</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/fields/">Поля</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link fw-semibold" href="/operations/create/">+ Операция</a>
+                    </li>
+                    
+
+                    
+
+                    
+
+                </ul>
+
+                
+                <div class="navbar-actions d-flex align-items-center gap-2">
+                    <span class="text-muted small d-none d-lg-block">
+                        Timur
+                        <span class="badge bg-secondary ms-1">Owner</span>
+                    </span>
+                    <form method="post" action="/accounts/logout/">
+                        <input type="hidden" name="csrfmiddlewaretoken" value="PZKg5qEukCk5ArMQAqnzccpkYt3OxBiOyC7nLhzabtHJYwz7xJYc99lmsBfZV8Qt">
+                        <button type="submit" class="btn btn-outline-light btn-sm">Выйти</button>
+                    </form>
+                    <button type="button" id="theme-toggle" class="btn btn-sm ms-1 border-0">
+                        <img id="theme-icon" src="file:///D:/diploma/agro_system/core/static/icons/icons8-dark-mode-100.png" width="18">
+                    </button>
+                </div>
+                
+            </div>
+        </div>
+    </nav>
+
+    <main class="py-4">
+        <div class="container">
+            
+            
 <style>
     .dashboard-shell {
         display: grid;
@@ -117,26 +191,6 @@
         font-size: .9rem;
     }
 
-    .dashboard-inline-action {
-        display: inline-flex;
-        align-items: center;
-        gap: .45rem;
-        border-radius: 999px;
-        border: 1px solid var(--bs-border-color);
-        background: var(--bs-tertiary-bg);
-        color: var(--bs-body-color);
-        padding: .5rem .85rem;
-        font-size: .875rem;
-        line-height: 1;
-        transition: transform .15s ease, border-color .15s ease, background-color .15s ease;
-    }
-
-    .dashboard-inline-action:hover {
-        transform: translateY(-1px);
-        border-color: var(--bs-secondary-color);
-        background: var(--bs-body-bg);
-    }
-
     .dashboard-resource-toplist {
         display: grid;
         gap: .45rem;
@@ -183,17 +237,6 @@
         min-height: 170px;
     }
 
-    .dashboard-chart-sidebar {
-        display: flex;
-        flex-direction: column;
-        gap: 1rem;
-        height: 100%;
-    }
-
-    .dashboard-chart-sidebar .dashboard-panel {
-        flex: 1 1 0;
-    }
-
     .dashboard-empty {
         min-height: 170px;
         display: flex;
@@ -217,114 +260,6 @@
         border-bottom-right-radius: 1.15rem;
     }
 
-    .dashboard-modal .modal-content {
-        border-radius: 1.25rem;
-        overflow: hidden;
-        background:
-            radial-gradient(circle at top right, rgba(13, 110, 253, 0.08), transparent 26%),
-            linear-gradient(180deg, var(--bs-body-bg), var(--bs-tertiary-bg));
-    }
-
-    .dashboard-modal .modal-header {
-        padding: 1.1rem 1.25rem;
-        border-bottom: 1px solid var(--bs-border-color-translucent);
-        background: rgba(255, 255, 255, 0.35);
-        backdrop-filter: blur(8px);
-    }
-
-    html[data-bs-theme="dark"] .dashboard-modal .modal-header {
-        background: rgba(18, 18, 18, 0.45);
-    }
-
-    .dashboard-modal-search {
-        padding: 1rem 1.25rem;
-        border-bottom: 1px solid var(--bs-border-color-translucent);
-        background: rgba(255, 255, 255, 0.2);
-    }
-
-    html[data-bs-theme="dark"] .dashboard-modal-search {
-        background: rgba(255, 255, 255, 0.03);
-    }
-
-    .dashboard-modal-meta {
-        display: flex;
-        flex-wrap: wrap;
-        gap: .5rem;
-        margin-top: .75rem;
-    }
-
-    .dashboard-modal-chip {
-        display: inline-flex;
-        align-items: center;
-        border-radius: 999px;
-        padding: .35rem .7rem;
-        background: var(--bs-body-bg);
-        border: 1px solid var(--bs-border-color);
-        color: var(--bs-secondary-color);
-        font-size: .8rem;
-    }
-
-    .dashboard-modal-list {
-        display: grid;
-        gap: .75rem;
-        padding: 1rem 1.25rem 1.25rem;
-    }
-
-    .dashboard-modal-item {
-        display: grid;
-        grid-template-columns: auto 1fr auto;
-        gap: .85rem;
-        align-items: center;
-        padding: .85rem .95rem;
-        border-radius: 1rem;
-        border: 1px solid var(--bs-border-color);
-        background: var(--bs-body-bg);
-        box-shadow: var(--bs-box-shadow-sm);
-    }
-
-    .dashboard-modal-rank {
-        width: 2rem;
-        height: 2rem;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        border-radius: 999px;
-        background: var(--bs-tertiary-bg);
-        color: var(--bs-secondary-color);
-        font-size: .8rem;
-        font-weight: 700;
-    }
-
-    .dashboard-modal-item.is-top {
-        border-color: rgba(255, 193, 7, 0.45);
-        background: linear-gradient(180deg, rgba(255, 193, 7, 0.08), transparent);
-    }
-
-    .dashboard-modal-item-title {
-        font-weight: 600;
-        margin-bottom: .2rem;
-    }
-
-    .dashboard-modal-item-subtitle {
-        color: var(--bs-secondary-color);
-        font-size: .84rem;
-    }
-
-    .dashboard-modal-item-value {
-        text-align: right;
-        font-variant-numeric: tabular-nums;
-    }
-
-    .dashboard-modal-item-value strong {
-        display: block;
-        font-size: .95rem;
-    }
-
-    .dashboard-modal-item-value span {
-        color: var(--bs-secondary-color);
-        font-size: .8rem;
-    }
-
     @media (max-width: 991.98px) {
         .dashboard-toolbar {
             align-items: stretch;
@@ -346,55 +281,63 @@
             </div>
             <div class="dashboard-currency">
                 <span class="small text-muted px-2">Валюта</span>
-                <a href="?currency=uzs&{{ query_params }}" class="btn btn-sm toggle-btn {% if currency == 'uzs' %}active{% endif %}">UZS</a>
-                <a href="?currency=usd&{{ query_params }}" class="btn btn-sm toggle-btn {% if currency == 'usd' %}active{% endif %}">USD</a>
+                <a href="?currency=uzs&" class="btn btn-sm toggle-btn active">UZS</a>
+                <a href="?currency=usd&" class="btn btn-sm toggle-btn ">USD</a>
             </div>
         </div>
         <div class="d-flex flex-wrap gap-2">
-            <span class="dashboard-chip">Период: {% if period == 'month' %}этот месяц{% elif period == 'year' %}этот год{% elif period == 'range' %}пользовательский диапазон{% else %}всё время{% endif %}</span>
-            <span class="dashboard-chip">Ресурсов в сводке: {{ dashboard.resources|length }}</span>
-            <span class="dashboard-chip">Курс USD: {{ usd_rate|money }}</span>
-            <a href="{% url 'update-rate' %}" class="btn btn-sm btn-outline-secondary">Обновить курс</a>
+            <span class="dashboard-chip">Период: всё время</span>
+            <span class="dashboard-chip">Ресурсов в сводке: 8</span>
+            <span class="dashboard-chip">Курс USD: 12 195 сум</span>
+            <a href="/update-rate/" class="btn btn-sm btn-outline-secondary">Обновить курс</a>
         </div>
     </section>
 
     <section class="dashboard-filter-card">
         <div class="card-body">
             <form method="get" class="d-flex flex-wrap align-items-center gap-2">
-                <input type="hidden" name="currency" value="{{ currency }}">
+                <input type="hidden" name="currency" value="uzs">
 
                 <div class="btn-group btn-group-sm">
-                    <a href="?period=all&currency={{ currency }}" class="btn {% if period == 'all' %}btn-primary{% else %}btn-outline-secondary{% endif %}">Все время</a>
-                    <a href="?period=month&currency={{ currency }}" class="btn {% if period == 'month' %}btn-primary{% else %}btn-outline-secondary{% endif %}">Этот месяц</a>
-                    <a href="?period=year&currency={{ currency }}" class="btn {% if period == 'year' %}btn-primary{% else %}btn-outline-secondary{% endif %}">Этот год</a>
+                    <a href="?period=all&currency=uzs" class="btn btn-primary">Все время</a>
+                    <a href="?period=month&currency=uzs" class="btn btn-outline-secondary">Этот месяц</a>
+                    <a href="?period=year&currency=uzs" class="btn btn-outline-secondary">Этот год</a>
                 </div>
 
                 <div class="vr d-none d-md-block"></div>
 
-                {% if years %}
+                
                 <select name="year" class="form-select form-select-sm" style="width:auto;min-width:120px;" onchange="this.form.elements['period'].value='year'; this.form.submit()">
                     <option value="">— Год —</option>
-                    {% for y in years %}
-                    <option value="{{ y }}" {% if year == y|stringformat:"s" %}selected{% endif %}>{{ y }}</option>
-                    {% endfor %}
+                    
+                    <option value="2019" >2019</option>
+                    
+                    <option value="2020" >2020</option>
+                    
+                    <option value="2025" >2025</option>
+                    
+                    <option value="2026" >2026</option>
+                    
+                    <option value="2027" >2027</option>
+                    
+                    <option value="2028" >2028</option>
+                    
                 </select>
-                <input type="hidden" name="period" value="{% if period %}{{ period }}{% else %}year{% endif %}">
-                {% endif %}
+                <input type="hidden" name="period" value="all">
+                
 
                 <div class="vr d-none d-md-block"></div>
 
                 <span class="small text-muted">Диапазон</span>
-                <input type="date" name="from_date" value="{{ from_date }}" class="form-control form-control-sm" style="width:150px;">
-                <input type="date" name="to_date" value="{{ to_date }}" class="form-control form-control-sm" style="width:150px;">
+                <input type="date" name="from_date" value="" class="form-control form-control-sm" style="width:150px;">
+                <input type="date" name="to_date" value="" class="form-control form-control-sm" style="width:150px;">
                 <button type="submit" class="btn btn-sm btn-outline-primary">Применить</button>
-                {% if from_date or to_date %}
-                <a href="?period=all&currency={{ currency }}" class="btn btn-sm btn-outline-secondary">Очистить</a>
-                {% endif %}
+                
             </form>
         </div>
     </section>
 
-    {% if is_owner %}
+    
     <section>
         <div class="row g-3">
             <div class="col-lg-5">
@@ -402,18 +345,14 @@
                     <div class="card-body">
                         <p class="dashboard-panel-title mb-2">Общая стоимость</p>
                         <div class="dashboard-stat-value mb-1">
-                            {% if currency == "usd" %}
-                            {{ dashboard.total_cost|money_short_usd }}
-                            {% else %}
-                            {{ dashboard.total_cost|money_short }}
-                            {% endif %}
+                            
+                            25.8 млн
+                            
                         </div>
                         <small class="text-muted">
-                            {% if currency == "usd" %}
-                            {{ dashboard.total_cost|money_usd }}
-                            {% else %}
-                            {{ dashboard.total_cost|money }}
-                            {% endif %}
+                            
+                            25 771 630 сум
+                            
                         </small>
                     </div>
                 </div>
@@ -422,7 +361,7 @@
                 <div class="dashboard-stat">
                     <div class="card-body">
                         <p class="dashboard-panel-title mb-2">Количество полей</p>
-                        <div class="dashboard-stat-value">{{ dashboard.fields_count }}</div>
+                        <div class="dashboard-stat-value">2</div>
                     </div>
                 </div>
             </div>
@@ -430,20 +369,20 @@
                 <div class="dashboard-stat">
                     <div class="card-body">
                         <p class="dashboard-panel-title mb-2">Количество операций</p>
-                        <div class="dashboard-stat-value">{{ dashboard.operations_count }}</div>
+                        <div class="dashboard-stat-value">27</div>
                     </div>
                 </div>
             </div>
         </div>
     </section>
-    {% endif %}
+    
 
-    {% if is_owner and charts %}
-    {{ charts|json_script:"dashboard-chart-data" }}
-    {{ dashboard.resources|json_script:"all-resources-data" }}
+    
+    <script id="dashboard-chart-data" type="application/json">{"cost_by_resource": [{"name": "\u0413\u0443\u043c\u0443\u0441", "cost_local": 16600000.0, "cost_usd": 1361.2002177920347}, {"name": "\u0414\u0438\u0437\u0435\u043b\u044c", "cost_local": 4263630.0, "cost_usd": 349.6177159388345}, {"name": "\u0411\u0435\u043d\u0437\u0438\u043d", "cost_local": 2325000.0, "cost_usd": 190.65003050400486}, {"name": "\u041f\u0448\u0435\u043d\u0438\u0446\u0430", "cost_local": 1000000.0, "cost_usd": 82.0000131200021}, {"name": "\u0420\u0438\u0441", "cost_local": 750000.0, "cost_usd": 61.50000984000157}, {"name": "\u0425\u043b\u043e\u043f\u043e\u043a", "cost_local": 500000.0, "cost_usd": 41.00000656000105}, {"name": "Other", "cost_local": 333000.0, "cost_usd": 27.306004368960696}], "cost_by_resource_type": [{"type": "\u0423\u0434\u043e\u0431\u0440\u0435\u043d\u0438\u0435", "cost_local": 16600000.0, "cost_usd": 1361.2002177920347}, {"type": "\u0422\u043e\u043f\u043b\u0438\u0432\u043e", "cost_local": 6588630.0, "cost_usd": 540.2677464428394}, {"type": "\u0421\u0435\u043c\u0435\u043d\u0430", "cost_local": 2250000.0, "cost_usd": 184.50002952000472}, {"type": "\u0412\u043e\u0434\u0430", "cost_local": 333000.0, "cost_usd": 27.306004368960696}], "operations_over_time": [{"date": "2019-02", "count": 1}, {"date": "2020-01", "count": 1}, {"date": "2025-03", "count": 5}, {"date": "2025-04", "count": 3}, {"date": "2025-05", "count": 3}, {"date": "2025-08", "count": 1}, {"date": "2026-03", "count": 4}, {"date": "2026-04", "count": 5}, {"date": "2026-05", "count": 1}, {"date": "2026-08", "count": 1}, {"date": "2027-03", "count": 3}, {"date": "2028-07", "count": 1}]}</script>
+    <script id="all-resources-data" type="application/json">[{"name": "\u0413\u0443\u043c\u0443\u0441", "type": "\u0423\u0434\u043e\u0431\u0440\u0435\u043d\u0438\u0435", "quantity": "10.00", "cost": "16600000.0000", "is_top": true}, {"name": "\u0414\u0438\u0437\u0435\u043b\u044c", "type": "\u0422\u043e\u043f\u043b\u0438\u0432\u043e", "quantity": "203.03", "cost": "4263630.0000", "is_top": false}, {"name": "\u0411\u0435\u043d\u0437\u0438\u043d", "type": "\u0422\u043e\u043f\u043b\u0438\u0432\u043e", "quantity": "155.00", "cost": "2325000.0000", "is_top": false}, {"name": "\u041f\u0448\u0435\u043d\u0438\u0446\u0430", "type": "\u0421\u0435\u043c\u0435\u043d\u0430", "quantity": "200.00", "cost": "1000000.0000", "is_top": false}, {"name": "\u0420\u0438\u0441", "type": "\u0421\u0435\u043c\u0435\u043d\u0430", "quantity": "100.00", "cost": "750000.0000", "is_top": false}, {"name": "\u0425\u043b\u043e\u043f\u043e\u043a", "type": "\u0421\u0435\u043c\u0435\u043d\u0430", "quantity": "50.00", "cost": "500000.0000", "is_top": false}, {"name": "\u0422\u0435\u0445\u043d\u0438\u0447\u0435\u0441\u043a\u0430\u044f \u0432\u043e\u0434\u0430", "type": "\u0412\u043e\u0434\u0430", "quantity": "1458.00", "cost": "291600.0000", "is_top": false}, {"name": "\u041f\u0438\u0442\u044c\u0435\u0432\u0430\u044f \u0432\u043e\u0434\u0430", "type": "\u0412\u043e\u0434\u0430", "quantity": "69.00", "cost": "41400.0000", "is_top": false}]</script>
     <section>
         <div class="row g-3">
-            <div class="col-xl-8">
+            <div class="col-xl-5">
                 <div class="dashboard-panel h-100">
                     <div class="card-body d-flex flex-column">
                     <div class="d-flex justify-content-between align-items-start gap-3 mb-3">
@@ -451,10 +390,7 @@
                                 <p class="dashboard-panel-title mb-1">Стоимость по ресурсам</p>
                                 <p class="dashboard-panel-note mb-0">Главные драйверы затрат за выбранный период.</p>
                             </div>
-                            <button class="dashboard-inline-action" type="button" onclick="openResourceModal()">
-                                <span>Все ресурсы</span>
-                                <span aria-hidden="true">→</span>
-                            </button>
+                            <button class="btn btn-sm btn-outline-secondary" onclick="openResourceModal()">Все ресурсы</button>
                         </div>
                         <div class="dashboard-chart-stage-lg flex-grow-1 position-relative">
                             <canvas id="costResourceChart" class="dashboard-chart"></canvas>
@@ -464,10 +400,9 @@
                 </div>
             </div>
 
-            <div class="col-xl-4">
-                <div class="dashboard-chart-sidebar">
-                    <div class="dashboard-panel">
-                        <div class="card-body d-flex flex-column h-100">
+            <div class="col-md-6 col-xl-3">
+                <div class="dashboard-panel h-100">
+                    <div class="card-body d-flex flex-column">
                         <div class="mb-3">
                             <p class="dashboard-panel-title mb-1">Структура затрат</p>
                             <p class="dashboard-panel-note mb-0">Как распределяются расходы по типам ресурсов.</p>
@@ -475,11 +410,13 @@
                         <div class="dashboard-chart-stage-sm flex-grow-1 position-relative">
                             <canvas id="costTypeChart" class="dashboard-chart"></canvas>
                         </div>
-                        </div>
                     </div>
+                </div>
+            </div>
 
-                    <div class="dashboard-panel">
-                        <div class="card-body d-flex flex-column h-100">
+            <div class="col-md-6 col-xl-4">
+                <div class="dashboard-panel h-100">
+                    <div class="card-body d-flex flex-column">
                         <div class="mb-3">
                             <p class="dashboard-panel-title mb-1">Операции по времени</p>
                             <p class="dashboard-panel-note mb-0">Динамика работ в разрезе выбранного периода.</p>
@@ -487,13 +424,12 @@
                         <div class="dashboard-chart-stage-sm flex-grow-1 position-relative">
                             <canvas id="operationsChart" class="dashboard-chart"></canvas>
                         </div>
-                        </div>
                     </div>
                 </div>
             </div>
         </div>
     </section>
-    {% endif %}
+    
 
     <section id="resources-table" class="dashboard-table-card">
         <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2 pt-3">
@@ -508,80 +444,142 @@
                     <thead>
                         <tr>
                             <th style="width: 40%;">
-                                <a href="?sort=name&order={{ next_order }}&{{ query_params }}#resources-table" class="text-decoration-none text-body d-flex align-items-center gap-1">
+                                <a href="?sort=name&order=asc&#resources-table" class="text-decoration-none text-body d-flex align-items-center gap-1">
                                     Название
-                                    {% include "components/sort_icon.html" with current_sort=sort current_order=order column="name" %}
+                                    
                                 </a>
                             </th>
                             <th class="text-end" style="width: 25%;">
-                                <a href="?sort=quantity&order={{ next_order }}&{{ query_params }}#resources-table" class="text-decoration-none text-body d-flex justify-content-center align-items-center gap-1">
+                                <a href="?sort=quantity&order=asc&#resources-table" class="text-decoration-none text-body d-flex justify-content-center align-items-center gap-1">
                                     Количество
-                                    {% include "components/sort_icon.html" with current_sort=sort current_order=order column="quantity" %}
+                                    
                                 </a>
                             </th>
                             <th class="text-end" style="width: 35%;">
-                                <a href="?sort=cost&order={{ next_order }}&{{ query_params }}#resources-table" class="text-decoration-none text-body d-flex justify-content-center align-items-center gap-1">
+                                <a href="?sort=cost&order=asc&#resources-table" class="text-decoration-none text-body d-flex justify-content-center align-items-center gap-1">
                                     Стоимость
-                                    {% include "components/sort_icon.html" with current_sort=sort current_order=order column="cost" %}
+                                    
                                 </a>
                             </th>
                         </tr>
                     </thead>
                     <tbody>
-                        {% for resource in dashboard.resources %}
-                        <tr class="{% if resource.is_top %}table-warning{% endif %}">
-                            <td>{{ resource.name|title }}</td>
-                            <td class="text-center">{{ resource.quantity }}</td>
+                        
+                        <tr class="table-warning">
+                            <td>Гумус</td>
+                            <td class="text-center">10.00</td>
                             <td class="text-center" style="min-width: 150px; white-space: nowrap;">
-                                {% if currency == "usd" %}
-                                {{ resource.cost|money_usd }}
-                                {% else %}
-                                {{ resource.cost|money }}
-                                {% endif %}
+                                
+                                16 600 000 сум
+                                
                             </td>
                         </tr>
-                        {% empty %}
-                        <tr>
-                            <td colspan="3" class="text-center text-muted py-4">Ресурсы не найдены.</td>
+                        
+                        <tr class="">
+                            <td>Дизель</td>
+                            <td class="text-center">203.03</td>
+                            <td class="text-center" style="min-width: 150px; white-space: nowrap;">
+                                
+                                4 263 630 сум
+                                
+                            </td>
                         </tr>
-                        {% endfor %}
+                        
+                        <tr class="">
+                            <td>Бензин</td>
+                            <td class="text-center">155.00</td>
+                            <td class="text-center" style="min-width: 150px; white-space: nowrap;">
+                                
+                                2 325 000 сум
+                                
+                            </td>
+                        </tr>
+                        
+                        <tr class="">
+                            <td>Пшеница</td>
+                            <td class="text-center">200.00</td>
+                            <td class="text-center" style="min-width: 150px; white-space: nowrap;">
+                                
+                                1 000 000 сум
+                                
+                            </td>
+                        </tr>
+                        
+                        <tr class="">
+                            <td>Рис</td>
+                            <td class="text-center">100.00</td>
+                            <td class="text-center" style="min-width: 150px; white-space: nowrap;">
+                                
+                                750 000 сум
+                                
+                            </td>
+                        </tr>
+                        
+                        <tr class="">
+                            <td>Хлопок</td>
+                            <td class="text-center">50.00</td>
+                            <td class="text-center" style="min-width: 150px; white-space: nowrap;">
+                                
+                                500 000 сум
+                                
+                            </td>
+                        </tr>
+                        
+                        <tr class="">
+                            <td>Техническая Вода</td>
+                            <td class="text-center">1458.00</td>
+                            <td class="text-center" style="min-width: 150px; white-space: nowrap;">
+                                
+                                291 600 сум
+                                
+                            </td>
+                        </tr>
+                        
+                        <tr class="">
+                            <td>Питьевая Вода</td>
+                            <td class="text-center">69.00</td>
+                            <td class="text-center" style="min-width: 150px; white-space: nowrap;">
+                                
+                                41 400 сум
+                                
+                            </td>
+                        </tr>
+                        
                     </tbody>
                 </table>
             </div>
         </div>
     </section>
 
-<div class="modal fade dashboard-modal" id="resourcesModal" tabindex="-1" aria-labelledby="resourcesModalLabel" aria-hidden="true">
+    <div class="modal fade" id="resourcesModal" tabindex="-1" aria-labelledby="resourcesModalLabel" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-lg">
             <div class="modal-content border-0 shadow">
                 <div class="modal-header">
-                    <div>
-                        <h5 class="modal-title mb-1" id="resourcesModalLabel">Все ресурсы</h5>
-                        <p class="text-muted small mb-0">Полный список с сортировкой по стоимости.</p>
-                    </div>
+                    <h5 class="modal-title" id="resourcesModalLabel">Все ресурсы</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body p-0">
-                    <div class="dashboard-modal-search">
+                    <div class="p-3 border-bottom">
                         <input type="text" id="resourceSearchInput" class="form-control" placeholder="Поиск по названию..." oninput="renderModalResources(this.value)">
-                        <div class="dashboard-modal-meta">
-                            <span class="dashboard-modal-chip" id="resourceResultsCount">0</span>
-                            <span class="dashboard-modal-chip">Сортировка: по убыванию стоимости</span>
-                        </div>
                     </div>
-                    <div class="dashboard-modal-list" id="modalResourcesList"></div>
+                    <div class="list-group list-group-flush" id="modalResourcesList"></div>
                 </div>
             </div>
         </div>
     </div>
 </div>
-{% endblock %}
 
-{% block extra_scripts %}
-{% if is_owner and charts %}
+        </div>
+    </main>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="file:///D:/diploma/agro_system/core/static/js/theme.js"></script>
+    
+
 <script>
     const chartData = JSON.parse(document.getElementById("dashboard-chart-data").textContent);
-    const currency = "{{ currency }}";
+    const currency = "uzs";
     const isDark = document.documentElement.dataset.bsTheme === "dark";
     const accentColor = isDark ? "#34d399" : "#198754";
     const accentFill = isDark ? "rgba(52, 211, 153, 0.18)" : "rgba(25, 135, 84, 0.14)";
@@ -778,32 +776,23 @@
 
     function openResourceModal() {
         renderModalResources("");
-        const modalEl = document.getElementById("resourcesModal");
-        modalEl.addEventListener("shown.bs.modal", () => {
-            document.getElementById("resourceSearchInput").focus();
-        }, { once: true });
-        new bootstrap.Modal(modalEl).show();
+        new bootstrap.Modal(document.getElementById("resourcesModal")).show();
     }
 
     function renderModalResources(filter) {
         const list = document.getElementById("modalResourcesList");
-        const count = document.getElementById("resourceResultsCount");
         list.innerHTML = "";
         const q = (filter || "").toLowerCase();
         const sorted = [...allResources]
             .filter(r => r.name.toLowerCase().includes(q))
             .sort((a, b) => (b.cost || 0) - (a.cost || 0));
 
-        count.textContent = q
-            ? `Найдено: ${sorted.length}`
-            : `Всего: ${sorted.length}`;
-
         if (!sorted.length) {
-            list.innerHTML = `<div class="dashboard-empty">Ресурсы не найдены</div>`;
+            list.innerHTML = `<div class="p-4 text-center text-muted">Ресурсы не найдены</div>`;
             return;
         }
 
-        const usdRate = parseFloat("{{ usd_rate }}") || 1;
+        const usdRate = parseFloat("12195.12") || 1;
         sorted.forEach((r, idx) => {
             const isTop = idx < 3;
             const val = currency === "usd"
@@ -811,21 +800,20 @@
                 : (r.cost || 0).toLocaleString() + " UZS";
 
             const item = document.createElement("div");
-            item.className = "dashboard-modal-item" + (isTop ? " is-top" : "");
+            item.className = "list-group-item d-flex justify-content-between align-items-center" + (isTop ? " bg-warning bg-opacity-10" : "");
             item.innerHTML = `
-                <span class="dashboard-modal-rank">${idx + 1}</span>
                 <div>
-                    <div class="dashboard-modal-item-title">${r.name}</div>
-                    <div class="dashboard-modal-item-subtitle">${r.quantity} ед.${isTop ? " · Топ-3 по затратам" : ""}</div>
+                    <h6 class="mb-0">${isTop ? "Топ " + (idx + 1) + " · " : ""}${r.name}</h6>
+                    <small class="text-muted">${r.quantity} units</small>
                 </div>
-                <div class="dashboard-modal-item-value">
-                    <strong>${val}</strong>
-                    <span>${currency === "usd" ? "USD" : "UZS"}</span>
-                </div>
+                <div class="text-end font-monospace"><strong>${val}</strong></div>
             `;
             list.appendChild(item);
         });
     }
 </script>
-{% endif %}
-{% endblock %}
+
+
+</body>
+
+</html>
