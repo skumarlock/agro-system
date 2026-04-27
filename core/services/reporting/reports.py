@@ -40,7 +40,7 @@ def get_field_crop_report(field_crop: FieldCrop, include_finances=True) -> dict:
         "name": field_crop.season.name,
         "year": field_crop.season.year,
     },
-    "status": field_crop.status,
+    "status": field_crop.get_computed_status(),
     "operations_count": get_field_crop_operations_count(field_crop),
 
     "total_cost": total_cost,

@@ -9,6 +9,16 @@
         <h1 class="h3 mb-1">Отчет по сезону</h1>
         <p class="text-muted mb-0">{{ report.season.name }} {{ report.season.year }}</p>
     </div>
+    {% if can_manage_seasons %}
+    <div class="d-flex gap-2">
+        <a href="{% url 'edit-season' report.season.id %}?next={{ request.get_full_path|urlencode }}" class="btn btn-outline-secondary">Редактировать сезон</a>
+        <form method="post" action="{% url 'delete-season' report.season.id %}" onsubmit="return confirm('Удалить этот сезон?');">
+            {% csrf_token %}
+            <input type="hidden" name="next" value="{% url 'fields-list' %}">
+            <button type="submit" class="btn btn-outline-danger">Удалить сезон</button>
+        </form>
+    </div>
+    {% endif %}
 </div>
 
 <div class="row g-4 mb-4">

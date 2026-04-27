@@ -72,7 +72,7 @@
                 <td class="text-nowrap small">{{ op.date }}</td>
                 <td class="small">{{ op.field_crop.field.name }}</td>
                 <td class="small">{{ op.field_crop.crop.name }}</td>
-                <td class="small">{{ op.get_type_display }}</td>
+                <td class="small">{{ op.type.name }}</td>
                 <td>
                     {% for r in op.operation_resources.all %}
                     <span class="badge bg-secondary-subtle text-body me-1" style="font-size:11px;">
@@ -135,7 +135,7 @@
             <div class="text-muted small mb-1">
                 {{ op.field_crop.field.name }} · {{ op.field_crop.crop.name }}
             </div>
-            <div class="mb-2 small"><strong>{{ op.get_type_display }}</strong></div>
+            <div class="mb-2 small"><strong>{{ op.type.name }}</strong></div>
             <div class="mb-2">
                 {% for r in op.operation_resources.all %}
                 <span class="badge bg-secondary-subtle text-body me-1" style="font-size:11px;">
@@ -224,7 +224,7 @@
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title">{{ op.get_type_display }} — {{ op.date }}</h5>
+                <h5 class="modal-title">{{ op.type.name }} — {{ op.date }}</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">

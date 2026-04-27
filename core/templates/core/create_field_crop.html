@@ -1,0 +1,179 @@
+{% extends "base.html" %}
+
+{% block title %}{{ form_title }} | Agro System{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-6">
+        <div class="mb-4">
+            <h2 class="mb-1">{{ form_title }}</h2>
+            <p class="text-muted mb-0">Привяжите культуру к полю и сезону, чтобы сразу планировать операции.</p>
+        </div>
+
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <form method="post">
+                    {% csrf_token %}
+                    <input type="hidden" name="next" value="{{ next }}">
+
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Поле</label>
+                        {{ form.field }}
+                        {% if form.field.errors %}
+                        <div class="text-danger small mt-1">{{ form.field.errors }}</div>
+                        {% endif %}
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Год</label>
+                        <select id="season-year-select" class="form-select">
+                            <option value="">-- Выбрать год --</option>
+                        </select>
+                        <div class="form-text">Сначала выберите поле, потом год, и после этого появятся подходящие сезоны.</div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Сезон</label>
+                        {{ form.season }}
+                        {% if form.season.errors %}
+                        <div class="text-danger small mt-1">{{ form.season.errors }}</div>
+                        {% endif %}
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Культура</label>
+                        {{ form.crop }}
+                        {% if form.crop.errors %}
+                        <div class="text-danger small mt-1">{{ form.crop.errors }}</div>
+                        {% endif %}
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label fw-semibold">Дата посадки</label>
+                            {{ form.planting_date }}
+                            {% if form.planting_date.errors %}
+                            <div class="text-danger small mt-1">{{ form.planting_date.errors }}</div>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label fw-semibold">Дата сбора</label>
+                            {{ form.harvest_date }}
+                            {% if form.harvest_date.errors %}
+                            <div class="text-danger small mt-1">{{ form.harvest_date.errors }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    {% if form.non_field_errors %}
+                    <div class="alert alert-danger py-2">
+                        {% for error in form.non_field_errors %}
+                        <div>{{ error }}</div>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+
+                    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mt-2">
+                        <a
+                            href="{% if next %}{{ next }}{% elif preselect_field_id %}{% url 'field-detail' preselect_field_id %}{% else %}{% url 'fields-list' %}{% endif %}"
+                            class="btn btn-outline-secondary"
+                        >
+                            Отменить
+                        </a>
+                        <button type="submit" class="btn btn-primary px-4">{{ submit_label }}</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+{{ fields_data|json_script:"field-crop-fields-data" }}
+{{ seasons_data|json_script:"field-crop-seasons-data" }}
+{{ season_years|json_script:"field-crop-season-years-data" }}
+
+<script>
+const fieldCropFields = JSON.parse(document.getElementById('field-crop-fields-data').textContent);
+const fieldCropSeasons = JSON.parse(document.getElementById('field-crop-seasons-data').textContent);
+const fieldCropSeasonYears = JSON.parse(document.getElementById('field-crop-season-years-data').textContent);
+
+const fieldCropFieldSelect = document.getElementById('id_field');
+const fieldCropYearSelect = document.getElementById('season-year-select');
+const fieldCropSeasonSelect = document.getElementById('id_season');
+const preselectFieldId = "{{ preselect_field_id }}";
+const preselectSeasonId = "{{ preselect_season_id }}";
+
+function filterFieldCropSeasons() {
+    const selectedFieldId = parseInt(fieldCropFieldSelect.value);
+    const selectedField = fieldCropFields.find(f => f.id === selectedFieldId);
+    const selectedYear = parseInt(fieldCropYearSelect.value);
+    const previousSeasonId = fieldCropSeasonSelect.value;
+
+    fieldCropSeasonSelect.innerHTML = '<option value="">---------</option>';
+
+    fieldCropSeasons
+        .filter(season => {
+            if (selectedField && season.owner_id && season.owner_id !== selectedField.owner_id) {
+                return false;
+            }
+            if (selectedYear && season.year !== selectedYear) {
+                return false;
+            }
+            return true;
+        })
+        .forEach(season => {
+            const option = new Option(season.name, season.id);
+            if (String(season.id) === String(previousSeasonId)) {
+                option.selected = true;
+            }
+            fieldCropSeasonSelect.add(option);
+        });
+}
+
+function populateFieldCropYears() {
+    const selectedFieldId = parseInt(fieldCropFieldSelect.value);
+    const selectedField = fieldCropFields.find(f => f.id === selectedFieldId);
+    const currentYearValue = fieldCropYearSelect.value;
+
+    fieldCropYearSelect.innerHTML = '<option value="">-- Выбрать год --</option>';
+
+    const years = new Set(
+        fieldCropSeasons
+            .filter(season => !selectedField || !season.owner_id || season.owner_id === selectedField.owner_id)
+            .map(season => season.year)
+    );
+
+    fieldCropSeasonYears
+        .filter(year => years.has(year))
+        .forEach(year => fieldCropYearSelect.add(new Option(year, year)));
+
+    if (currentYearValue) {
+        fieldCropYearSelect.value = currentYearValue;
+    }
+}
+
+fieldCropFieldSelect.addEventListener('change', function() {
+    populateFieldCropYears();
+    filterFieldCropSeasons();
+});
+
+fieldCropYearSelect.addEventListener('change', filterFieldCropSeasons);
+
+if (preselectFieldId) {
+    fieldCropFieldSelect.value = preselectFieldId;
+}
+populateFieldCropYears();
+
+if (preselectSeasonId) {
+    const selectedSeason = fieldCropSeasons.find(season => String(season.id) === String(preselectSeasonId));
+    if (selectedSeason) {
+        fieldCropYearSelect.value = selectedSeason.year;
+    }
+}
+filterFieldCropSeasons();
+
+if (preselectSeasonId) {
+    fieldCropSeasonSelect.value = preselectSeasonId;
+}
+</script>
+{% endblock %}

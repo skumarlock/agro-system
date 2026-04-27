@@ -17,36 +17,56 @@
       <form method="post" id="operation-form">
         {% csrf_token %}
 
+        {% if form.non_field_errors or form.errors %}
+        <div class="alert alert-danger" role="alert">
+          {% for error in form.non_field_errors %}
+          <div>{{ error }}</div>
+          {% endfor %}
+          {% for field in form %}
+            {% for error in field.errors %}
+            <div>{{ field.label }}: {{ error }}</div>
+            {% endfor %}
+          {% endfor %}
+        </div>
+        {% endif %}
+
         <!-- GENERAL -->
         <div class="card shadow-sm mb-4">
           <div class="card-body">
             <h5 class="mb-3">Основная информация</h5>
 
-            <!-- CASCADE: Field → Season → Crop -->
+            <!-- CASCADE: Field → Year → Season → Crop -->
             <div class="mb-3">
               <label class="form-label fw-semibold">Поле</label>
-              <select id="field-select" class="form-select">
+              <select id="field-select" name="field" class="form-select">
                 <option value="">— Выбрать поле —</option>
               </select>
             </div>
             <div class="mb-3">
+              <label class="form-label fw-semibold">Год</label>
+              <select id="year-select" class="form-select" disabled>
+                <option value="">-- Выбрать год --</option>
+              </select>
+              <div class="form-text">Цепочка выбора идёт слева направо: поле → год → сезон → культура.</div>
+            </div>
+            <div class="mb-3">
               <label class="form-label fw-semibold">Сезон</label>
-              <select id="season-select" class="form-select" disabled>
+              <select id="season-select" name="season" class="form-select" disabled>
                 <option value="">— Выбрать сезон —</option>
               </select>
             </div>
             <div class="mb-3">
               <label class="form-label fw-semibold">Культура / Полевая культура</label>
-              <select id="crop-select" class="form-select" disabled>
+              <select id="crop-select" name="crop" class="form-select" disabled>
                 <option value="">— Выбрать культуру —</option>
               </select>
             </div>
-            <!-- hidden Django field driven by JS -->
-            <div class="d-none">{{ form.field_crop }}</div>
 
             <div class="mb-3">
               <label class="form-label fw-semibold">Тип операции</label>
               {{ form.type }}
+              <input type="text" name="new_operation_type" class="form-control mt-2"
+                     placeholder="Свой тип операции (если нет в списке)">
             </div>
 
             <div class="row">
@@ -117,10 +137,10 @@
               <h5 class="mb-0">Расписание <small class="text-muted fw-normal">(опционально)</small></h5>
               <div class="d-flex gap-2">
                 <button type="button" class="btn btn-sm btn-outline-primary" onclick="openScheduler()">
-                  🗓 Автоматическое расписание
+                  Авто-расписание
                 </button>
                 <button type="button" class="btn btn-sm btn-outline-secondary" onclick="runAIPlan()">
-                  🤖 ИИ-план
+                  ИИ-план
                 </button>
               </div>
             </div>
@@ -134,7 +154,7 @@
           <a href="{% url 'fields-list' %}" class="btn btn-outline-secondary">Отмена</a>
           <div class="d-flex gap-2">
             <button type="button" class="btn btn-primary" onclick="goToPreview()">
-              Предварительный просмотр →
+              Проверить перед сохранением
             </button>
           </div>
         </div>
@@ -149,7 +169,7 @@
     <div id="preview-step" class="d-none">
       <div class="d-flex justify-content-between align-items-center mb-3">
         <h4 class="mb-0">Предварительный просмотр</h4>
-        <button class="btn btn-outline-secondary btn-sm" onclick="backToForm()">← Редактировать</button>
+        <button class="btn btn-outline-secondary btn-sm" onclick="backToForm()">Вернуться к форме</button>
       </div>
       <p class="text-muted small mb-3">
         Проверьте и отрегулируйте даты или количество перед сохранением. Каждая строка создает одну операцию.
@@ -174,7 +194,7 @@
       <div class="d-flex justify-content-between">
         <button class="btn btn-outline-danger btn-sm" onclick="backToForm()">← Назад</button>
         <button class="btn btn-success px-4" onclick="confirmAndSubmit()">
-          ✓ Создать {{ '' }}Операции
+          Сохранить операции
         </button>
       </div>
     </div>
@@ -220,7 +240,7 @@
 <div class="toast-container position-fixed bottom-0 end-0 p-3" style="z-index:1080;">
   <div id="ai-toast" class="toast align-items-center border-0" role="alert">
     <div class="d-flex">
-      <div class="toast-body" id="ai-toast-body">🤖 Получение ИИ-плана…</div>
+      <div class="toast-body" id="ai-toast-body">Подбираем ИИ-план…</div>
       <button type="button" class="btn-close me-2 m-auto" data-bs-dismiss="toast"></button>
     </div>
   </div>
@@ -230,6 +250,7 @@
 {{ fields|json_script:"fields-data" }}
 {{ field_crops|json_script:"field-crops-data" }}
 {{ seasons|json_script:"seasons-data" }}
+{{ season_years|json_script:"season-years-data" }}
 
 <script>
 // ─────────────────────────────────────────────
@@ -238,11 +259,12 @@
 const cascadeFields     = JSON.parse(document.getElementById('fields-data').textContent);
 const cascadeFieldCrops = JSON.parse(document.getElementById('field-crops-data').textContent);
 const cascadeSeasons    = JSON.parse(document.getElementById('seasons-data').textContent);
+const cascadeYears      = JSON.parse(document.getElementById('season-years-data').textContent);
 
 const fieldSel  = document.getElementById('field-select');
+const yearSel   = document.getElementById('year-select');
 const seasonSel = document.getElementById('season-select');
 const cropSel   = document.getElementById('crop-select');
-const hiddenFC  = document.getElementById('id_field_crop');
 const dateInput = document.getElementById('id_date');
 
 cascadeFields.forEach(f => fieldSel.add(new Option(f.name, f.id)));
@@ -252,44 +274,54 @@ const preselectSeasonId = "{{ preselect_season_id }}";
 
 fieldSel.addEventListener('change', function () {
   const fid = parseInt(this.value);
-  seasonSel.innerHTML  = '<option value="">— Select Season —</option>';
-  cropSel.innerHTML    = '<option value="">— Select Crop —</option>';
-  hiddenFC.value       = '';
-  seasonSel.disabled   = true;
-  cropSel.disabled     = true;
+  yearSel.innerHTML = '<option value="">-- Выбрать год --</option>';
+  seasonSel.innerHTML = '<option value="">-- Выбрать сезон --</option>';
+  cropSel.innerHTML = '<option value="">-- Выбрать культуру --</option>';
+  yearSel.disabled = true;
+  seasonSel.disabled = true;
+  cropSel.disabled = true;
   if (!fid) return;
 
   const field = cascadeFields.find(f => f.id === fid);
-  cascadeSeasons.filter(s => field && s.owner_id === field.owner_id).forEach(s =>
-    seasonSel.add(new Option(s.name, s.id))
-  );
+  const years = new Set(cascadeSeasons.filter(s => field && s.owner_id === field.owner_id).map(s => s.year));
+  cascadeYears.filter(y => years.has(y)).forEach(y => yearSel.add(new Option(y, y)));
+  yearSel.disabled = false;
+});
+
+yearSel.addEventListener('change', async function () {
+  const year = parseInt(this.value);
+  const fid = parseInt(fieldSel.value);
+  const field = cascadeFields.find(f => f.id === fid);
+  seasonSel.innerHTML = '<option value="">-- Выбрать сезон --</option>';
+  cropSel.innerHTML = '<option value="">-- Выбрать культуру --</option>';
+  seasonSel.disabled = true;
+  cropSel.disabled = true;
+  if (!year || !field) return;
+
+  const resp = await fetch(`/api/seasons/?year=${year}&owner_id=${field.owner_id}`);
+  if (!resp.ok) return;
+  const data = await resp.json();
+  (data.seasons || []).forEach(s => seasonSel.add(new Option(s.name, s.id)));
   seasonSel.disabled = false;
 });
 
 seasonSel.addEventListener('change', function () {
   const sid = parseInt(this.value);
   const fid = parseInt(fieldSel.value);
-  cropSel.innerHTML = '<option value="">— Select Crop —</option>';
-  hiddenFC.value    = '';
-  cropSel.disabled  = true;
-  if (!sid) return;
-
   const season = cascadeSeasons.find(s => s.id === sid);
-  if (season) {
-    dateInput.min = season.start_date;
-    dateInput.max = season.end_date;
-    document.getElementById('sched-start').value = season.start_date;
-    document.getElementById('sched-end').value   = season.end_date;
-  }
+  cropSel.innerHTML = '<option value="">-- Выбрать культуру --</option>';
+  cropSel.disabled = true;
+  if (!season) return;
 
+  const seenCropIds = new Set();
   cascadeFieldCrops
-    .filter(fc => fc.field_id === fid && fc.season_id === sid)
-    .forEach(fc => cropSel.add(new Option(fc.name, fc.id)));
+    .filter(fc => fc.field_id === fid && fc.season_year === season.year)
+    .forEach(fc => {
+      if (seenCropIds.has(fc.crop_id)) return;
+      seenCropIds.add(fc.crop_id);
+      cropSel.add(new Option(fc.name, fc.crop_id));
+    });
   cropSel.disabled = false;
-});
-
-cropSel.addEventListener('change', function () {
-  hiddenFC.value = this.value;
 });
 
 // Auto-select field/season when coming from a field detail page.
@@ -297,8 +329,15 @@ if (preselectFieldId) {
   fieldSel.value = preselectFieldId;
   fieldSel.dispatchEvent(new Event('change'));
   if (preselectSeasonId) {
-    seasonSel.value = preselectSeasonId;
-    seasonSel.dispatchEvent(new Event('change'));
+    const selectedSeason = cascadeSeasons.find(s => String(s.id) === String(preselectSeasonId));
+    if (selectedSeason) {
+      yearSel.value = selectedSeason.year;
+      yearSel.dispatchEvent(new Event('change'));
+      setTimeout(() => {
+        seasonSel.value = preselectSeasonId;
+        seasonSel.dispatchEvent(new Event('change'));
+      }, 250);
+    }
   }
 }
 
@@ -363,7 +402,7 @@ function getBaseResources() {
 let scheduleItems = []; // [{date, resources:[{id,name,quantity}]}]
 
 function openScheduler() {
-  if (!seasonSel.value) { alert('Please select a Season first.'); return; }
+  if (!seasonSel.value) { alert('Сначала выберите сезон.'); return; }
   new bootstrap.Modal(document.getElementById('schedulerModal')).show();
 }
 
@@ -372,7 +411,7 @@ function generateSchedule() {
   const end   = new Date(document.getElementById('sched-end').value);
   const freq  = parseInt(document.getElementById('sched-freq').value);
 
-  if (isNaN(start) || isNaN(end)) { alert('Set valid start and end dates.'); return; }
+  if (isNaN(start) || isNaN(end)) { alert('Укажите корректные даты начала и окончания.'); return; }
 
   const baseRes = getBaseResources();
   const dates   = [];
@@ -391,14 +430,14 @@ function generateSchedule() {
 // ─────────────────────────────────────────────
 async function runAIPlan() {
   const sid = parseInt(seasonSel.value);
-  if (!sid) { alert('Please select a Season first.'); return; }
+  if (!sid) { alert('Сначала выберите сезон.'); return; }
   const season = cascadeSeasons.find(s => s.id === sid);
   if (!season) return;
 
   const typeEl = document.getElementById('id_type');
   const typ = typeEl ? typeEl.value : '';
   const toast = new bootstrap.Toast(document.getElementById('ai-toast'));
-  document.getElementById('ai-toast-body').textContent = '🤖 Fetching AI plan…';
+  document.getElementById('ai-toast-body').textContent = 'Подбираем ИИ-план…';
   toast.show();
 
   try {
@@ -407,11 +446,11 @@ async function runAIPlan() {
     const data = await resp.json();
     const baseRes = getBaseResources();
     scheduleItems = (data.dates || []).map(d => ({ date: d, resources: baseRes.map(r => ({...r})) }));
-    document.getElementById('ai-toast-body').textContent = `🤖 AI suggested ${scheduleItems.length} dates — Preview loaded.`;
+    document.getElementById('ai-toast-body').textContent = `ИИ предложил ${scheduleItems.length} дат. Предварительный просмотр обновлён.`;
     setTimeout(() => toast.hide(), 2500);
     showPreview();
   } catch (e) {
-    document.getElementById('ai-toast-body').textContent = '❌ AI endpoint unavailable.';
+    document.getElementById('ai-toast-body').textContent = 'Не удалось получить ИИ-план.';
     setTimeout(() => toast.hide(), 3000);
   }
 }
@@ -420,7 +459,7 @@ async function runAIPlan() {
 // PREVIEW STEP
 // ─────────────────────────────────────────────
 function showPreview() {
-  if (!scheduleItems.length) { alert('No dates generated.'); return; }
+  if (!scheduleItems.length) { alert('Даты для операций пока не сформированы.'); return; }
   renderPreviewTable();
   document.getElementById('form-step').classList.add('d-none');
   document.getElementById('preview-step').classList.remove('d-none');
@@ -488,14 +527,19 @@ function renderPreviewTable() {
 
   // Update confirm button text
   document.querySelector('#preview-step .btn-success').textContent =
-    `✓ Create ${scheduleItems.length} Operation${scheduleItems.length !== 1 ? 's' : ''}`;
+    scheduleItems.length === 1
+      ? 'Сохранить 1 операцию'
+      : `Сохранить ${scheduleItems.length} операций`;
 }
 
 function goToPreview() {
   // Validate required fields before showing preview
-  if (!hiddenFC.value) { alert('Please select Field → Season → Crop.'); return; }
+  if (!fieldSel.value || !seasonSel.value || !cropSel.value) {
+    alert('Сначала выберите связку Поле → Год → Сезон → Культура.');
+    return;
+  }
   const baseRes = getBaseResources();
-  if (!baseRes.length) { alert('Add at least one resource with a quantity.'); return; }
+  if (!baseRes.length) { alert('Добавьте хотя бы один ресурс с количеством.'); return; }
 
   if (!scheduleItems.length) {
     // Single-date mode: just submit form directly
@@ -513,11 +557,11 @@ function goToPreview() {
 }
 
 function confirmAndSubmit() {
-  if (!scheduleItems.length) { alert('No operations to create.'); return; }
+  if (!scheduleItems.length) { alert('Нет операций для сохранения.'); return; }
 
   // Validate all dates
   const invalid = scheduleItems.filter(i => !i.date);
-  if (invalid.length) { alert('Some rows have missing dates.'); return; }
+  if (invalid.length) { alert('У некоторых строк не заполнена дата.'); return; }
 
   // Serialize schedule → hidden input
   document.getElementById('schedule-input').value = JSON.stringify(

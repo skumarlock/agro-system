@@ -2,7 +2,7 @@ from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
 from .models import (
     User, Field, Crop, Season,
-    FieldCrop, Operation, Resource, OperationResource, AgronomistAssignment, ResourcePrice
+    FieldCrop, Operation, OperationType, Resource, OperationResource, AgronomistAssignment, ResourcePrice
 )
 
 # =====================
@@ -76,6 +76,13 @@ class OperationResourceInline(admin.TabularInline):
 # =====================
 # OPERATION
 # =====================
+@admin.register(OperationType)
+class OperationTypeAdmin(admin.ModelAdmin):
+    list_display = ("name", "owner")
+    list_filter = ("owner",)
+    search_fields = ("name",)
+
+
 @admin.register(Operation)
 class OperationAdmin(admin.ModelAdmin):
     list_display = ("type", "date", "status", "field_crop", "performed_by")

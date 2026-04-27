@@ -9,7 +9,17 @@
         <h1 class="h3 mb-1">Детали культуры</h1>
         <p class="text-muted mb-0">{{ report.field.name }} / {{ report.crop.name }}</p>
     </div>
-    <a href="{% url 'field-crops' %}" class="btn btn-outline-secondary">Назад к списку</a>
+    <div class="d-flex gap-2">
+        {% if can_manage_field_crops %}
+        <a href="{% url 'edit-field-crop' report.field_crop_id %}?next={{ request.get_full_path|urlencode }}" class="btn btn-outline-secondary">Редактировать</a>
+        <form method="post" action="{% url 'delete-field-crop' report.field_crop_id %}" onsubmit="return confirm('Удалить эту культуру из поля?');">
+            {% csrf_token %}
+            <input type="hidden" name="next" value="{% url 'field-detail' report.field.id %}?season={{ report.season.id }}">
+            <button type="submit" class="btn btn-outline-danger">Удалить</button>
+        </form>
+        {% endif %}
+        <a href="{% url 'field-crops' %}" class="btn btn-outline-secondary">Назад к списку</a>
+    </div>
 </div>
 
 <div class="row g-4 mb-4">
@@ -31,7 +41,15 @@
                     </dd>
 
                     <dt class="col-sm-4">Статус</dt>
-                    <dd class="col-sm-8">{{ report.status|title }}</dd>
+                    <dd class="col-sm-8">
+                        {% if report.status == status_harvested %}
+                        <span class="badge bg-success">Собрано</span>
+                        {% elif report.status == status_active %}
+                        <span class="badge bg-primary">Активно</span>
+                        {% else %}
+                        <span class="badge bg-secondary">Запланировано</span>
+                        {% endif %}
+                    </dd>
                 </dl>
             </div>
         </div>

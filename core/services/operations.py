@@ -39,7 +39,8 @@ def calculate_operation_cost(operation: Operation) -> Decimal:
 def get_user_operations(user, limit=None):
     qs = Operation.objects.select_related(
         "field_crop__field",
-        "field_crop__crop"
+        "field_crop__crop",
+        "type",
     ).prefetch_related(
         "operation_resources__resource"
     )

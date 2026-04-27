@@ -67,6 +67,9 @@ class Season(TimeStampedModel):
     class Meta:
         ordering = ["-year", "name"]
         unique_together = ("owner", "name", "start_date", "end_date")
+        indexes = [
+            models.Index(fields=["owner", "year"], name="core_season_owner_year_idx"),
+        ]
 
     def clean(self):
         if self.start_date and self.end_date and self.end_date <= self.start_date:
@@ -168,39 +171,73 @@ class FieldCrop(TimeStampedModel):
         ]
 
     def get_computed_status(self) -> str:
-        """
-        Compute FieldCrop lifecycle status purely from operations and dates.
-        Season is NOT involved in this logic.
+        from core.models import Operation
 
-        PLANNED   → no operations OR today < earliest operation date
-        ACTIVE    → first_op_date <= today <= last_op_date
-        HARVESTED → today > last_op_date AND all operations are done
-        """
-        from django.utils.timezone import now as tz_now
-        today = tz_now().date()
+        today = timezone.now().date()
 
-        ops = list(self.operations.values("date", "status"))
-        if not ops:
+        if today < self.planting_date:
             return self.Status.PLANNED
 
-        dates = [op["date"] for op in ops]
-        first_date = min(dates)
-        last_date  = max(dates)
+        if self.harvest_date and today > self.harvest_date:
+            return self.Status.HARVESTED
 
-        if today < first_date:
-            return self.Status.PLANNED
-
-        if today > last_date or (self.harvest_date and today > self.harvest_date):
-            all_done = all(op["status"] == "done" for op in ops)
-            if all_done:
-                return self.Status.HARVESTED
-            # Some ops still planned after last date → still active
+        if self.planting_date <= today and (
+            not self.harvest_date or today <= self.harvest_date
+        ):
             return self.Status.ACTIVE
+
+        ops = Operation.objects.filter(
+            field_crop__field=self.field,
+            field_crop__crop=self.crop,
+            field_crop__season=self.season,
+        )
+        if ops.exists():
+            if ops.filter(status="done").exists():
+                return self.Status.ACTIVE
+            return self.Status.PLANNED
 
         return self.Status.ACTIVE
 
     def __str__(self):
         return f"{self.field} - {self.crop} ({self.season})"
+
+
+class OperationType(TimeStampedModel):
+    owner = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name="operation_types",
+        null=True,
+        blank=True,
+    )
+    name = models.CharField(max_length=100)
+
+    class Meta:
+        ordering = ["name"]
+        unique_together = ("owner", "name")
+
+    def __str__(self):
+        return self.name
+
+
+LEGACY_OPERATION_TYPE_MAP = {
+    "полив": "Полив",
+    "посадка": "Посадка",
+    "удобрение": "Удобрение",
+    "сбор урожая": "Сбор урожая",
+}
+
+
+class OperationManager(models.Manager):
+    def create(self, **kwargs):
+        type_value = kwargs.get("type")
+        if isinstance(type_value, str):
+            type_name = LEGACY_OPERATION_TYPE_MAP.get(type_value, type_value)
+            kwargs["type"], _ = OperationType.objects.get_or_create(
+                owner=None,
+                name=type_name,
+            )
+        return super().create(**kwargs)
 
 
 class Operation(TimeStampedModel):
@@ -219,7 +256,11 @@ class Operation(TimeStampedModel):
         on_delete=models.CASCADE,
         related_name="operations",
     )
-    type = models.CharField(max_length=20, choices=Type.choices)
+    type = models.ForeignKey(
+        OperationType,
+        on_delete=models.PROTECT,
+        related_name="operations",
+    )
     date = models.DateField()
     description = models.TextField(blank=True)
     status = models.CharField(
@@ -235,13 +276,15 @@ class Operation(TimeStampedModel):
         related_name="operations",
     )
 
+    objects = OperationManager()
+
     def get_total_cost(self) -> Decimal:
         from core.services.operations import calculate_operation_cost
 
         return calculate_operation_cost(self)
 
     def __str__(self):
-        return f"{self.get_type_display()} - {self.date}"
+        return f"{self.type.name} - {self.date}"
     
     class Meta:
         indexes = [
@@ -345,6 +388,9 @@ class AgronomistAssignment(models.Model):
     )
     created_at = models.DateTimeField(auto_now_add=True)
     can_view_finances = models.BooleanField(default=False)
+    can_manage_operations = models.BooleanField(default=False)
+    can_manage_seasons = models.BooleanField(default=False)
+    can_manage_field_crops = models.BooleanField(default=False)
 
     def clean(self):
         if self.owner.role != "owner":

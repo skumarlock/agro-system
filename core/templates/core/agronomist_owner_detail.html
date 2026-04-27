@@ -6,7 +6,13 @@
 <div class="d-flex justify-content-between align-items-start mb-4 flex-wrap gap-2">
     <div>
         <h1 class="h4 mb-1">{{ owner.username }} Поля</h1>
-        <p class="text-muted mb-0">Одно поле в строке. Откройте поле, чтобы увидеть сезоны, культуры и операции.</p>
+        <p class="text-muted mb-1">Одно поле в строке. Откройте поле, чтобы увидеть сезоны, культуры и операции.</p>
+        {% if available_years %}
+        <p class="text-muted small mb-0">
+            Фильтр по году показывает только те поля, где есть хотя бы один сезон выбранного года.
+            {% if year_filter_applies_to_seasons %}Сейчас выбран {{ year }} год.{% endif %}
+        </p>
+        {% endif %}
     </div>
 
     {% if available_years %}

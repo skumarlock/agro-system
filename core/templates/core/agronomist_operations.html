@@ -22,7 +22,7 @@
                     <th>Операция</th>
                     <th>Ресурсы</th>
                     <th>Статус</th>
-                    <th class="text-end">Действия</th>
+                    {% if can_manage_operations %}<th class="text-end">Действия</th>{% endif %}
                 </tr>
             </thead>
             <tbody>
@@ -38,7 +38,7 @@
                         {% empty %}—{% endfor %}
                     </td>
                     <td>{{ op.status }}</td>
-                    <td class="text-end text-nowrap">
+                    {% if can_manage_operations %}<td class="text-end text-nowrap">
                         <form method="post" action="{% url 'toggle-operation' op.pk %}" class="d-inline">
                             {% csrf_token %}
                             <input type="hidden" name="next" value="{{ request.get_full_path }}">
@@ -52,11 +52,11 @@
                             <input type="hidden" name="next" value="{{ request.get_full_path }}">
                             <button class="btn btn-sm btn-outline-danger" type="submit">Удалить</button>
                         </form>
-                    </td>
+                    </td>{% endif %}
                 </tr>
                 {% empty %}
                 <tr>
-                    <td colspan="5" class="text-center text-muted py-4">Операции не найдены.</td>
+                    <td colspan="{% if can_manage_operations %}5{% else %}4{% endif %}" class="text-center text-muted py-4">Операции не найдены.</td>
                 </tr>
                 {% endfor %}
             </tbody>

@@ -3,223 +3,346 @@
 {% block title %}{{ field.name }} Детали поля | Agro System{% endblock %}
 
 {% block content %}
+<style>
+    .field-detail-shell {
+        display: grid;
+        gap: 1rem;
+    }
 
-<!-- Header -->
-<div class="d-flex justify-content-between align-items-start mb-4 flex-wrap gap-2">
-    <div>
-        <nav aria-label="breadcrumb" class="mb-1">
-            <ol class="breadcrumb mb-0 small">
-                <li class="breadcrumb-item"><a href="{% url 'fields-list' %}">Поля</a></li>
-                <li class="breadcrumb-item active">{{ field.name }}</li>
-            </ol>
-        </nav>
-        <h1 class="h3 mb-0">{{ field.name }}</h1>
-        <p class="text-muted mb-0 small">📍 {{ field.location }} &nbsp;·&nbsp; 📐 {{ field.area }} ha
-            {% if field.soil_type %}&nbsp;·&nbsp; 🪨 {{ field.soil_type }}{% endif %}
-        </p>
-    </div>
-    <div class="d-flex gap-2">
-        {% if is_owner %}
-        <a href="{% url 'create-season' %}?next={{ request.path }}" class="btn btn-sm btn-outline-primary">+ Сезон</a>
-        {% endif %}
-        {% if request.user.role != "worker" %}
-        <a href="{% url 'create-operation' %}?field_id={{ field.pk }}{% if selected_season %}&season_id={{ selected_season.id }}{% endif %}&next={{ request.get_full_path|urlencode }}" class="btn btn-sm btn-outline-primary">+ Операция</a>
-        {% endif %}
-    </div>
-</div>
+    .field-detail-hero {
+        border: 1px solid var(--bs-border-color);
+        border-radius: 1rem;
+        background: var(--bs-body-bg);
+        box-shadow: var(--bs-box-shadow-sm);
+        padding: 1.25rem;
+    }
 
-<!-- Season tabs -->
-<ul class="nav nav-tabs mb-3" id="seasonTabs">
-    {% if active_seasons %}
-    <li class="nav-item dropdown">
-        <a class="nav-link dropdown-toggle {% if selected_season in active_seasons %}active{% endif %}"
-           data-bs-toggle="dropdown" href="#">🟢 Активный</a>
-        <ul class="dropdown-menu">
-            {% for s in active_seasons %}
-            <li>
-                <a class="dropdown-item {% if selected_season.id == s.id %}fw-bold{% endif %}"
-                   href="?season={{ s.id }}">{{ s.name }} {{ s.year }}</a>
-            </li>
-            {% endfor %}
-        </ul>
-    </li>
-    {% endif %}
+    .field-detail-meta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: .5rem;
+        margin-top: .75rem;
+    }
 
-    {% if past_seasons %}
-    <li class="nav-item dropdown">
-        <a class="nav-link dropdown-toggle {% if selected_season in past_seasons %}active{% endif %}"
-           data-bs-toggle="dropdown" href="#">📦 Прошлые</a>
-        <ul class="dropdown-menu">
-            {% for s in past_seasons %}
-            <li>
-                <a class="dropdown-item {% if selected_season.id == s.id %}fw-bold{% endif %}"
-                   href="?season={{ s.id }}">{{ s.name }} {{ s.year }}</a>
-            </li>
-            {% endfor %}
-        </ul>
-    </li>
-    {% endif %}
+    .field-detail-meta-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: .35rem;
+        padding: .4rem .7rem;
+        border-radius: 999px;
+        border: 1px solid var(--bs-border-color);
+        background: var(--bs-tertiary-bg);
+        color: var(--bs-secondary-color);
+        font-size: .875rem;
+    }
 
-    {% if future_seasons %}
-    <li class="nav-item dropdown">
-        <a class="nav-link dropdown-toggle {% if selected_season in future_seasons %}active{% endif %}"
-           data-bs-toggle="dropdown" href="#">🔮 Будущие</a>
-        <ul class="dropdown-menu">
-            {% for s in future_seasons %}
-            <li>
-                <a class="dropdown-item {% if selected_season.id == s.id %}fw-bold{% endif %}"
-                   href="?season={{ s.id }}">{{ s.name }} {{ s.year }}</a>
-            </li>
-            {% endfor %}
-        </ul>
-    </li>
-    {% endif %}
+    .field-detail-actions {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+        gap: .5rem;
+    }
 
-    {% if not active_seasons and not past_seasons and not future_seasons %}
-    <li class="nav-item">
-        <span class="nav-link text-muted disabled">Пока нет сезонов</span>
-    </li>
-    {% endif %}
-</ul>
+    .field-detail-actions .btn {
+        min-width: 11rem;
+    }
 
-<!-- Selected season info -->
-{% if selected_season %}
-<div class="d-flex align-items-center gap-3 mb-3">
-    <h5 class="mb-0">{{ selected_season.name }} {{ selected_season.year }}</h5>
-    <small class="text-muted">{{ selected_season.start_date }} → {{ selected_season.end_date }}</small>
-    <a href="{% url 'season-report' selected_season.id %}" class="btn btn-sm btn-outline-secondary ms-auto">
-        📊 Отчет по сезону
-    </a>
-</div>
+    .field-detail-section-card {
+        border: 1px solid var(--bs-border-color);
+        border-radius: 1rem;
+        background: var(--bs-body-bg);
+        box-shadow: var(--bs-box-shadow-sm);
+    }
 
-<!-- FieldCrop table for this season -->
-{% if field_crops %}
-<div class="card border-0 shadow-sm">
-    <div class="table-responsive">
-        <table class="table table-hover align-middle mb-0">
-            <thead class="table-responsive">
-                <tr>
-                    <th>Культура</th>
-                    <th>Посадка</th>
-                    <th>Уборка</th>
-                    <th>Статус</th>
-                    <th>Операции</th>
-                    <th></th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for item in field_crops %}
-                <tr>
-                    <td class="fw-semibold">{{ item.fc.crop.name }}</td>
-                    <td class="small text-muted">{{ item.fc.planting_date }}</td>
-                    <td class="small text-muted">{{ item.fc.harvest_date|default:"—" }}</td>
-                    <td>
-                        {% if item.computed_status == "harvested" %}
-                        <span class="badge bg-success">Убрано</span>
-                        {% elif item.computed_status == "active" %}
-                        <span class="badge bg-primary">Активно</span>
-                        {% else %}
-                        <span class="badge bg-secondary">Запланировано</span>
+    .field-detail-section-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: .75rem;
+        padding: 1rem 1.1rem .25rem;
+    }
+
+    .field-detail-inline-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: .5rem;
+        align-items: center;
+    }
+
+    .field-detail-row-actions {
+        display: flex;
+        justify-content: flex-end;
+        flex-wrap: wrap;
+        gap: .4rem;
+    }
+
+    @media (max-width: 991.98px) {
+        .field-detail-actions {
+            justify-content: flex-start;
+        }
+
+        .field-detail-actions .btn {
+            min-width: 0;
+        }
+
+        .field-detail-section-head {
+            flex-direction: column;
+            align-items: flex-start;
+        }
+
+        .field-detail-row-actions {
+            justify-content: flex-start;
+        }
+    }
+</style>
+
+<div class="field-detail-shell">
+    <section class="field-detail-hero">
+        <div class="d-flex justify-content-between align-items-start flex-wrap gap-3">
+            <div>
+                <nav aria-label="breadcrumb" class="mb-2">
+                    <ol class="breadcrumb mb-0 small">
+                        {% if request.user.role == "agronomist" %}
+                        <li class="breadcrumb-item"><a href="{% url 'agronomist-owner-detail' field.owner_id %}">Назад к владельцу</a></li>
                         {% endif %}
-                    </td>
-                    <td>
-                        <div class="d-flex align-items-center gap-2">
-                            <div class="progress flex-grow-1" style="height:6px;min-width:60px;">
-                                {% if item.ops_total > 0 %}
-                                {% widthratio item.ops_done item.ops_total 100 as progress_percent %}
-                                <div class="progress-bar bg-success" style="width: {{ progress_percent }}%;"></div>
+                        <li class="breadcrumb-item"><a href="{% url 'fields-list' %}">Поля</a></li>
+                        <li class="breadcrumb-item active">{{ field.name }}</li>
+                    </ol>
+                </nav>
+                <h1 class="h3 mb-1">{{ field.name }}</h1>
+                <p class="text-muted mb-0">Вся работа по этому полю собрана в одном месте: сезоны, культуры и операции.</p>
+                <div class="field-detail-meta">
+                    <span class="field-detail-meta-chip">Локация: {{ field.location }}</span>
+                    <span class="field-detail-meta-chip">Площадь: {{ field.area }} га </span>
+                    {% if field.soil_type %}
+                    <span class="field-detail-meta-chip">Почва: {{ field.soil_type }}</span>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="field-detail-actions">
+                {% if can_manage_seasons %}
+                <a href="{% url 'create-season' %}?next={{ request.path }}" class="btn btn-primary">Создать сезон</a>
+                {% endif %}
+                {% if can_manage_field_crops %}
+                <a href="{% url 'create-field-crop' %}?field={{ field.pk }}{% if selected_season %}&season={{ selected_season.id }}{% endif %}&next={{ request.get_full_path|urlencode }}" class="btn btn-outline-primary">Добавить культуру</a>
+                {% endif %}
+                {% if can_manage_operations %}
+                <a href="{% url 'create-operation' %}?field_id={{ field.pk }}{% if selected_season %}&season_id={{ selected_season.id }}{% endif %}&next={{ request.get_full_path|urlencode }}" class="btn btn-outline-primary">Добавить операцию</a>
+                {% endif %}
+            </div>
+        </div>
+    </section>
+
+    <ul class="nav nav-tabs mb-0" id="seasonTabs">
+        {% if active_seasons %}
+        <li class="nav-item dropdown">
+            <a class="nav-link dropdown-toggle {% if selected_season in active_seasons %}active{% endif %}" data-bs-toggle="dropdown" href="#">Активные</a>
+            <ul class="dropdown-menu">
+                {% for s in active_seasons %}
+                <li>
+                    <a class="dropdown-item {% if selected_season.id == s.id %}fw-bold{% endif %}" href="?season={{ s.id }}">{{ s.name }} {{ s.year }}</a>
+                </li>
+                {% endfor %}
+            </ul>
+        </li>
+        {% endif %}
+
+        {% if past_seasons %}
+        <li class="nav-item dropdown">
+            <a class="nav-link dropdown-toggle {% if selected_season in past_seasons %}active{% endif %}" data-bs-toggle="dropdown" href="#">Прошлые</a>
+            <ul class="dropdown-menu">
+                {% for s in past_seasons %}
+                <li>
+                    <a class="dropdown-item {% if selected_season.id == s.id %}fw-bold{% endif %}" href="?season={{ s.id }}">{{ s.name }} {{ s.year }}</a>
+                </li>
+                {% endfor %}
+            </ul>
+        </li>
+        {% endif %}
+
+        {% if future_seasons %}
+        <li class="nav-item dropdown">
+            <a class="nav-link dropdown-toggle {% if selected_season in future_seasons %}active{% endif %}" data-bs-toggle="dropdown" href="#">Будущие</a>
+            <ul class="dropdown-menu">
+                {% for s in future_seasons %}
+                <li>
+                    <a class="dropdown-item {% if selected_season.id == s.id %}fw-bold{% endif %}" href="?season={{ s.id }}">{{ s.name }} {{ s.year }}</a>
+                </li>
+                {% endfor %}
+            </ul>
+        </li>
+        {% endif %}
+
+        {% if not active_seasons and not past_seasons and not future_seasons %}
+        <li class="nav-item">
+            <span class="nav-link text-muted disabled">Пока нет сезонов</span>
+        </li>
+        {% endif %}
+    </ul>
+
+    {% if selected_season %}
+    <section class="field-detail-section-card">
+        <div class="field-detail-section-head">
+            <div>
+                <h5 class="mb-1">{{ selected_season.name }} {{ selected_season.year }}</h5>
+                <small class="text-muted">{{ selected_season.start_date }} → {{ selected_season.end_date }}</small>
+            </div>
+            <div class="field-detail-inline-actions">
+                <a href="{% url 'season-report' selected_season.id %}" class="btn btn-sm btn-outline-secondary">Отчет по сезону</a>
+                {% if can_manage_seasons %}
+                <a href="{% url 'edit-season' selected_season.id %}?next={{ request.get_full_path|urlencode }}" class="btn btn-sm btn-outline-secondary">Редактировать</a>
+                <form method="post" action="{% url 'delete-season' selected_season.id %}" class="d-inline" onsubmit="return confirm('Удалить этот сезон?');">
+                    {% csrf_token %}
+                    <input type="hidden" name="next" value="{% url 'fields-list' %}">
+                    <button type="submit" class="btn btn-sm btn-outline-danger">Удалить</button>
+                </form>
+                {% endif %}
+            </div>
+        </div>
+
+        {% if field_crops %}
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead>
+                    <tr>
+                        <th>Культура</th>
+                        <th>Посадка</th>
+                        <th>Уборка</th>
+                        <th>Статус</th>
+                        <th>Операции</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in field_crops %}
+                    <tr>
+                        <td class="fw-semibold">{{ item.fc.crop.name }}</td>
+                        <td class="small text-muted">{{ item.fc.planting_date }}</td>
+                        <td class="small text-muted">{{ item.fc.harvest_date|default:"—" }}</td>
+                        <td>
+                            {% if item.computed_status == status_harvested %}
+                            <span class="badge bg-success">Убрано</span>
+                            {% elif item.computed_status == status_active %}
+                            <span class="badge bg-primary">Активно</span>
+                            {% else %}
+                            <span class="badge bg-secondary">Запланировано</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div class="d-flex align-items-center gap-2">
+                                <div class="progress flex-grow-1" style="height:6px;min-width:60px;">
+                                    {% if item.ops_total > 0 %}
+                                    {% widthratio item.ops_done item.ops_total 100 as progress_percent %}
+                                    <div class="progress-bar bg-success" style="width: {{ progress_percent }}%;"></div>
+                                    {% endif %}
+                                </div>
+                                <span class="small text-muted">{{ item.ops_done }}/{{ item.ops_total }}</span>
+                            </div>
+                        </td>
+                        <td class="text-end">
+                            <div class="field-detail-row-actions">
+                                <a href="{% url 'field-crop-detail' item.fc.pk %}" class="btn btn-sm btn-outline-primary">Открыть</a>
+                                {% if can_manage_field_crops %}
+                                <a href="{% url 'edit-field-crop' item.fc.pk %}?next={{ request.get_full_path|urlencode }}" class="btn btn-sm btn-outline-secondary">Редактировать</a>
+                                <form method="post" action="{% url 'delete-field-crop' item.fc.pk %}" class="d-inline" onsubmit="return confirm('Удалить эту культуру из поля?');">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                                    <button type="submit" class="btn btn-sm btn-outline-danger">Удалить</button>
+                                </form>
                                 {% endif %}
                             </div>
-                            <span class="small text-muted">{{ item.ops_done }}/{{ item.ops_total }}</span>
-                        </div>
-                    </td>
-                    <td class="text-end">
-                        <a href="{% url 'field-crop-detail' item.fc.pk %}" class="btn btn-sm btn-outline-primary">Детали</a>
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </div>
-</div>
-{% else %}
-<div class="text-center text-muted py-4">
-    <p class="mb-0">Пока нет культур для этого сезона.</p>
-</div>
-{% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="text-center text-muted py-4">
+            <p class="mb-0">Пока нет культур для этого сезона.</p>
+        </div>
+        {% endif %}
+    </section>
+    {% else %}
+    <section class="field-detail-section-card">
+        <div class="text-center text-muted py-5">
+            <p class="mb-2">Пока нет сезонов для этого поля.</p>
+            {% if can_manage_seasons %}
+            <a href="{% url 'create-season' %}?next={{ request.path }}" class="btn btn-primary btn-sm">Создать сезон</a>
+            {% endif %}
+        </div>
+    </section>
+    {% endif %}
 
-{% else %}
-<div class="text-center text-muted py-5">
-    <p class="mb-2">Пока нет сезонов для этого поля.</p>
-    {% if is_owner %}
-    <a href="{% url 'create-season' %}?next={{ request.path }}" class="btn btn-outline-primary btn-sm">+ Создать сезон</a>
+    {% if operations %}
+    <section class="field-detail-section-card">
+        <div class="field-detail-section-head">
+            <div>
+                <h6 class="mb-1 text-muted text-uppercase" style="font-size:11px;letter-spacing:.06em;">Операции</h6>
+                <small class="text-muted">{{ operations|length }} записей в выбранном сезоне</small>
+            </div>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0 small">
+                <thead>
+                    <tr>
+                        <th>Дата</th>
+                        <th>Тип</th>
+                        <th>Культура</th>
+                        <th>Статус</th>
+                        <th>Работник</th>
+                        <th>Ресурсы</th>
+                        {% if can_manage_operations %}
+                        <th class="text-end">Действия</th>
+                        {% endif %}
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for op in operations %}
+                    <tr id="op-{{ op.pk }}">
+                        <td class="text-nowrap">{{ op.date }}</td>
+                        <td>{{ op.type.name }}</td>
+                        <td class="text-muted">{{ op.field_crop.crop.name }}</td>
+                        <td>
+                            {% if op.status == "done" %}
+                            <span class="badge bg-success">Выполнено</span>
+                            {% else %}
+                            <span class="badge bg-secondary">Запланировано</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-muted">{{ op.performed_by.username|default:"—" }}</td>
+                        <td>
+                            {% for r in op.operation_resources.all %}
+                            <span class="badge bg-secondary-subtle text-body border me-1">
+                                {{ r.resource.name }}: {{ r.quantity }} {{ r.resource.unit }}
+                            </span>
+                            {% empty %}—{% endfor %}
+                        </td>
+                        {% if can_manage_operations %}
+                        <td class="text-end">
+                            <div class="field-detail-row-actions">
+                                <form method="post" action="{% url 'toggle-operation' op.pk %}" class="d-inline">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                                    <button class="btn btn-sm btn-outline-primary" type="submit">
+                                        {% if op.status == "done" %}Отменить{% else %}Выполнить{% endif %}
+                                    </button>
+                                </form>
+                                <a href="{% url 'edit-operation' op.pk %}?next={{ request.get_full_path|urlencode }}" class="btn btn-sm btn-outline-secondary">Редактировать</a>
+                                <form method="post" action="{% url 'delete-operation' op.pk %}" class="d-inline" onsubmit="return confirm('Удалить эту операцию?');">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                                    <button class="btn btn-sm btn-outline-danger" type="submit">Удалить</button>
+                                </form>
+                            </div>
+                        </td>
+                        {% endif %}
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </section>
     {% endif %}
 </div>
-{% endif %}
-
-<!-- Block C/D: Operations table for selected season -->
-{% if operations %}
-<h6 class="mt-4 mb-2 text-muted text-uppercase" style="font-size:11px;letter-spacing:.06em;">Операции ({{ operations|length }})</h6>
-<div class="card border-0 shadow-sm">
-    <div class="table-responsive">
-        <table class="table table-hover align-middle mb-0 small">
-            <thead class="table-responsive">
-                <tr>
-                    <th>Дата</th>
-                    <th>Тип</th>
-                    <th>Культура</th>
-                    <th>Статус</th>
-                    <th>Работник</th>
-                    <th>Ресурсы</th>
-                    {% if request.user.role != "worker" %}
-                    <th class="text-end">Действия</th>
-                    {% endif %}
-                </tr>
-            </thead>
-            <tbody>
-                {% for op in operations %}
-                <tr id="op-{{ op.pk }}">
-                    <td class="text-nowrap">{{ op.date }}</td>
-                    <td>{{ op.get_type_display }}</td>
-                    <td class="text-muted">{{ op.field_crop.crop.name }}</td>
-                    <td>
-                        {% if op.status == "done" %}
-                        <span class="badge bg-success">Выполнено</span>
-                        {% else %}
-                        <span class="badge bg-secondary">Запланировано</span>
-                        {% endif %}
-                    </td>
-                    <td class="text-muted">{{ op.performed_by.username|default:"—" }}</td>
-                    <td>
-                        {% for r in op.operation_resources.all %}
-                        <span class="badge bg-secondary-subtle text-body border me-1">
-                            {{ r.resource.name }}: {{ r.quantity }} {{ r.resource.unit }}
-                        </span>
-                        {% empty %}—{% endfor %}
-                    </td>
-                    {% if request.user.role != "worker" %}
-                    <td class="text-end text-nowrap">
-                        <form method="post" action="{% url 'toggle-operation' op.pk %}" class="d-inline">
-                            {% csrf_token %}
-                            <input type="hidden" name="next" value="{{ request.get_full_path }}">
-                            <button class="btn btn-sm btn-outline-primary" type="submit">
-                                {% if op.status == "done" %}Отменить{% else %}Выполнить{% endif %}
-                            </button>
-                        </form>
-                        <a href="{% url 'edit-operation' op.pk %}?next={{ request.get_full_path|urlencode }}" class="btn btn-sm btn-outline-secondary">Редактировать</a>
-                        <form method="post" action="{% url 'delete-operation' op.pk %}" class="d-inline" onsubmit="return confirm('Удалить эту операцию?');">
-                            {% csrf_token %}
-                            <input type="hidden" name="next" value="{{ request.get_full_path }}">
-                            <button class="btn btn-sm btn-outline-danger" type="submit">Удалить</button>
-                        </form>
-                    </td>
-                    {% endif %}
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </div>
-</div>
-{% endif %}
-
 {% endblock %}

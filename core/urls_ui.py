@@ -21,7 +21,13 @@ from core.views_ui import (
     agronomist_owner_detail,
     agronomist_field_operations,
     toggle_finance_access,
+    toggle_agronomist_permission,
     create_season,
+    create_field_crop,
+    edit_field_crop,
+    delete_field_crop,
+    edit_season,
+    delete_season,
 )
 
 urlpatterns = [
@@ -38,10 +44,15 @@ urlpatterns = [
     # Field crops (legacy / detailed reports)
     path("field-crops/", field_crop_list_view, name="field-crops"),
     path("field-crops/<int:pk>/", field_crop_detail_view, name="field-crop-detail"),
+    path("field-crops/<int:pk>/edit/", edit_field_crop, name="edit-field-crop"),
+    path("field-crops/<int:pk>/delete/", delete_field_crop, name="delete-field-crop"),
 
     # Seasons
     path("seasons/<int:pk>/report/", season_report_view, name="season-report"),
     path("seasons/create/", create_season, name="create-season"),
+    path("seasons/<int:pk>/edit/", edit_season, name="edit-season"),
+    path("seasons/<int:pk>/delete/", delete_season, name="delete-season"),
+    path("field-crops/create/", create_field_crop, name="create-field-crop"),
 
     # Operations
     path("my-operations/", my_operations_view, name="my-operations"),
@@ -59,6 +70,7 @@ urlpatterns = [
     path("agronomists/", my_agronomists, name="my-agronomists"),
     path("agronomists/<int:pk>/remove/", remove_agronomist, name="remove-agronomist"),
     path("agronomists/<int:pk>/toggle-finance/", toggle_finance_access, name="toggle-finance-access"),
+    path("agronomists/<int:pk>/toggle-permission/<slug:permission_name>/", toggle_agronomist_permission, name="toggle-agronomist-permission"),
 
     # Agronomist portal
     path("agronomist/", agronomist_dashboard, name="agronomist-dashboard"),

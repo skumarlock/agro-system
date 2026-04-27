@@ -41,9 +41,9 @@
                         <td>{{ item.season.name }} {{ item.season.year }}</td>
                         <td>
                             {% with status=item.computed_status %}
-                            {% if status == "harvested" %}
+                            {% if status == status_harvested %}
                             <span class="badge bg-success">Собрано</span>
-                            {% elif status == "active" %}
+                            {% elif status == status_active %}
                             <span class="badge bg-primary">Активно</span>
                             {% else %}
                             <span class="badge bg-secondary">Запланировано</span>

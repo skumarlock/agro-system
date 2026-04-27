@@ -1,5 +1,6 @@
 import calendar
 import json
+import logging
 from datetime import timedelta
 from collections import Counter, defaultdict
 
@@ -22,11 +23,19 @@ from core.services import (
     get_user_field_crop_or_404,
     get_user_season_or_404,
 )
-from core.models import Operation, Season, User, AgronomistAssignment, FieldCrop, OperationResource, Field
-from core.forms import OperationForm, WorkerRegistrationForm, InviteAgronomistForm, SeasonCreateForm
+from core.models import Operation, Season, User, AgronomistAssignment, FieldCrop, OperationResource, Field, OperationType
+from core.forms import (
+    FieldCropCreateForm,
+    InviteAgronomistForm,
+    OperationForm,
+    SeasonCreateForm,
+    WorkerRegistrationForm,
+)
 from django.http import HttpResponseForbidden, JsonResponse
 from django.urls import reverse
 from core.models import Resource
+
+logger = logging.getLogger(__name__)
 
 
 def get_home_url(user):
@@ -42,10 +51,28 @@ def is_owner_or_admin(user):
     return user.role in ["owner", "admin"]
 
 
+def get_active_owner_for_user(user, request=None):
+    if user.role == "owner":
+        return user
+    if user.role == "agronomist":
+        owner_id = request.session.get("active_owner_id") if request else None
+        qs = User.objects.filter(
+            role="owner",
+            agronomist_links__agronomist=user,
+        )
+        if owner_id:
+            owner = qs.filter(pk=owner_id).first()
+            if owner:
+                return owner
+        return qs.first()
+    return user.owner
+
+
 def get_operation_for_user_or_403(user, pk):
     qs = Operation.objects.select_related(
         "field_crop__field",
         "field_crop__crop",
+        "type",
         "performed_by",
     ).prefetch_related("operation_resources__resource")
 
@@ -59,6 +86,193 @@ def get_operation_for_user_or_403(user, pk):
         qs = qs.filter(field_crop__field__owner=user)
 
     return qs.distinct().filter(pk=pk).first()
+
+
+def get_agronomist_assignment_for_owner(user, owner):
+    if user.role != "agronomist":
+        return None
+    return AgronomistAssignment.objects.filter(
+        agronomist=user,
+        owner=owner,
+    ).first()
+
+
+def can_manage_operations_for_owner(user, owner):
+    if user.role in ["owner", "admin"]:
+        return True
+    link = get_agronomist_assignment_for_owner(user, owner)
+    return bool(link and link.can_manage_operations)
+
+
+def can_manage_seasons_for_owner(user, owner):
+    if user.role in ["owner", "admin"]:
+        return True
+    link = get_agronomist_assignment_for_owner(user, owner)
+    return bool(link and link.can_manage_seasons)
+
+
+def can_manage_field_crops_for_owner(user, owner):
+    if user.role in ["owner", "admin"]:
+        return True
+    link = get_agronomist_assignment_for_owner(user, owner)
+    return bool(link and link.can_manage_field_crops)
+
+
+def _get_manageable_season_or_404(request, pk):
+    qs = Season.objects.all()
+    if request.user.role == "owner":
+        qs = qs.filter(owner=request.user)
+    elif request.user.role != "admin":
+        return None
+    return qs.filter(pk=pk).first()
+
+
+def _get_manageable_field_crop_or_404(request, pk):
+    qs = FieldCrop.objects.select_related("field", "season", "crop")
+    if request.user.role == "owner":
+        qs = qs.filter(field__owner=request.user)
+    elif request.user.role != "admin":
+        return None
+    return qs.filter(pk=pk).first()
+
+
+def _get_field_crop_form_context(request, form, *, next_url="", preselect_field_id="", preselect_season_id="", form_title="Добавить культуру", submit_label="Добавить культуру"):
+    if request.user.role == "owner":
+        fields_qs = Field.objects.filter(owner=request.user).select_related("owner")
+        seasons_qs = Season.objects.filter(owner=request.user)
+    else:
+        fields_qs = Field.objects.select_related("owner").all()
+        seasons_qs = Season.objects.all()
+
+    return {
+        "form": form,
+        "next": next_url,
+        "preselect_field_id": preselect_field_id,
+        "preselect_season_id": preselect_season_id,
+        "season_years": sorted({s.year for s in seasons_qs}, reverse=True),
+        "seasons_data": [
+            {
+                "id": s.id,
+                "name": str(s),
+                "year": s.year,
+                "owner_id": s.owner_id,
+            }
+            for s in seasons_qs.order_by("-start_date")
+        ],
+        "fields_data": [
+            {
+                "id": f.id,
+                "name": f.name,
+                "owner_id": f.owner_id,
+            }
+            for f in fields_qs.order_by("name")
+        ],
+        "form_title": form_title,
+        "submit_label": submit_label,
+    }
+
+
+def _get_create_operation_context(request, form):
+    if request.user.role == "agronomist":
+        active_owner = get_active_owner_for_user(request.user, request)
+        owner_ids = [active_owner.id] if active_owner else list(
+            AgronomistAssignment.objects.filter(
+                agronomist=request.user
+            ).values_list("owner_id", flat=True)
+        )
+        fields_qs = Field.objects.filter(owner_id__in=owner_ids).select_related("owner")
+        fc_qs = FieldCrop.objects.filter(field__owner_id__in=owner_ids).select_related("field", "season", "crop")
+        seasons_qs = Season.objects.filter(owner_id__in=owner_ids)
+    else:
+        fields_qs = Field.objects.filter(owner=request.user).select_related("owner")
+        fc_qs = FieldCrop.objects.filter(field__owner=request.user).select_related("field", "season", "crop")
+        seasons_qs = Season.objects.filter(owner=request.user)
+
+    fields_data = [{"id": f.id, "name": f.name, "owner_id": f.owner_id} for f in fields_qs]
+    field_crops_data = [
+        {
+            "id": fc.id,
+            "field_id": fc.field_id,
+            "crop_id": fc.crop_id,
+            "season_id": fc.season_id,
+            "season_year": fc.season.year,
+            "name": fc.crop.name,
+        }
+        for fc in fc_qs
+    ]
+    season_years = sorted({s.year for s in seasons_qs}, reverse=True)
+    seasons_data = [
+        {
+            "id": s.id,
+            "name": str(s),
+            "owner_id": s.owner_id,
+            "start_date": s.start_date.isoformat(),
+            "end_date": s.end_date.isoformat(),
+            "year": s.year,
+        }
+        for s in seasons_qs.order_by("-start_date")
+    ]
+
+    return {
+        "form": form,
+        "resources": Resource.objects.all(),
+        "fields": fields_data,
+        "field_crops": field_crops_data,
+        "seasons": seasons_data,
+        "season_years": season_years,
+        "preselect_field_id": request.POST.get("field") or request.GET.get("field_id", ""),
+        "preselect_season_id": request.POST.get("season") or request.GET.get("season_id", ""),
+        "next": request.POST.get("next") or request.GET.get("next", ""),
+    }
+
+
+def _resolve_field_crop_for_operation(request, field_id, crop_id, season_id):
+    selected_season = Season.objects.filter(pk=season_id).first()
+    if not selected_season:
+        raise FieldCrop.DoesNotExist
+
+    field_crop_qs = FieldCrop.objects.select_related("field", "season", "crop")
+    if request.user.role == "agronomist":
+        owner_ids = AgronomistAssignment.objects.filter(
+            agronomist=request.user
+        ).values_list("owner_id", flat=True)
+        field_crop_qs = field_crop_qs.filter(field__owner_id__in=owner_ids)
+        active_owner = get_active_owner_for_user(request.user, request)
+        if active_owner:
+            field_crop_qs = field_crop_qs.filter(field__owner=active_owner)
+    else:
+        field_crop_qs = field_crop_qs.filter(field__owner=request.user)
+
+    logger.info(
+        "create_operation FieldCrop candidates user_id=%s season_id=%s season_year=%s ids=%s",
+        request.user.id,
+        season_id,
+        selected_season.year,
+        list(field_crop_qs.values_list("id", flat=True)[:20]),
+    )
+
+    exact_fc = field_crop_qs.filter(
+        field_id=field_id,
+        crop_id=crop_id,
+        season_id=season_id,
+    ).first()
+    if exact_fc:
+        return exact_fc
+
+    year_fc = field_crop_qs.filter(
+        field_id=field_id,
+        crop_id=crop_id,
+        season__year=selected_season.year,
+    ).order_by("season__start_date", "id").first()
+    if year_fc:
+        return year_fc
+
+    raise FieldCrop.DoesNotExist
+
+
+def _is_harvest_operation(operation_type):
+    type_name = (operation_type.name or "").strip().lower()
+    return type_name in {"сбор урожая", "harvesting", "harvest"}
 
 @login_required
 def dashboard_view(request):
@@ -235,12 +449,15 @@ def field_crop_list_view(request):
         "field_crops": reports,
         "seasons": seasons,
         "is_owner": request.user.role == "owner",
+        "status_active": FieldCrop.Status.ACTIVE,
+        "status_harvested": FieldCrop.Status.HARVESTED,
     })
 
 
 @login_required
 def field_crop_detail_view(request, pk):
     field_crop = get_user_field_crop_or_404(request.user, pk)
+    can_manage_field_crops = can_manage_field_crops_for_owner(request.user, field_crop.field.owner)
 
     # Finance visibility: owners always see it; agronomists only if can_view_finances=True
     if request.user.role == "agronomist":
@@ -254,6 +471,7 @@ def field_crop_detail_view(request, pk):
 
     data = {
         "report": get_field_crop_report(field_crop, include_finances=include_finances),
+        "can_manage_field_crops": can_manage_field_crops,
     }
 
     # --- СОРТИРОВКА ---
@@ -268,6 +486,8 @@ def field_crop_detail_view(request, pk):
     data["sort"] = sort
     data["order"] = order
     data["next_order"] = next_order
+    data["status_active"] = FieldCrop.Status.ACTIVE
+    data["status_harvested"] = FieldCrop.Status.HARVESTED
 
     query_dict = request.GET.copy()
     query_dict.pop("sort", None)
@@ -281,6 +501,7 @@ def field_crop_detail_view(request, pk):
 @login_required
 def season_report_view(request, pk):
     season = get_user_season_or_404(request.user, pk)
+    can_manage_seasons = can_manage_seasons_for_owner(request.user, season.owner)
 
     if request.user.role == "agronomist":
         link = AgronomistAssignment.objects.filter(
@@ -294,6 +515,7 @@ def season_report_view(request, pk):
     data = {
         "report": get_season_report(season, request.user, include_finances=include_finances),
         "can_view_finances": include_finances,
+        "can_manage_seasons": can_manage_seasons,
     }
 
     # --- СОРТИРОВКА (копия из dashboard) ---
@@ -329,6 +551,8 @@ def toggle_operation_status(request, pk):
     op = get_operation_for_user_or_403(request.user, pk)
     if not op:
         return HttpResponseForbidden("You are not allowed to update this operation")
+    if not can_manage_operations_for_owner(request.user, op.field_crop.field.owner):
+        return HttpResponseForbidden("You are not allowed to update this operation")
 
     if op.status == "done":
         op.status = "planned"
@@ -353,11 +577,13 @@ def toggle_operation_status(request, pk):
 
 @login_required
 def edit_operation(request, pk):
-    if request.user.role not in ["owner", "agronomist"]:
+    if request.user.role not in ["owner", "agronomist", "admin"]:
         return HttpResponseForbidden("You are not allowed to edit operations")
 
     op = get_operation_for_user_or_403(request.user, pk)
     if not op:
+        return HttpResponseForbidden("You are not allowed to edit this operation")
+    if not can_manage_operations_for_owner(request.user, op.field_crop.field.owner):
         return HttpResponseForbidden("You are not allowed to edit this operation")
 
     next_url = request.GET.get("next") or request.POST.get("next") or reverse("field-detail", args=[op.field_crop.field_id])
@@ -381,11 +607,13 @@ def edit_operation(request, pk):
 @login_required
 @require_POST
 def delete_operation(request, pk):
-    if request.user.role not in ["owner", "agronomist"]:
+    if request.user.role not in ["owner", "agronomist", "admin"]:
         return HttpResponseForbidden("You are not allowed to delete operations")
 
     op = get_operation_for_user_or_403(request.user, pk)
     if not op:
+        return HttpResponseForbidden("You are not allowed to delete this operation")
+    if not can_manage_operations_for_owner(request.user, op.field_crop.field.owner):
         return HttpResponseForbidden("You are not allowed to delete this operation")
 
     next_url = request.POST.get("next") or reverse("field-detail", args=[op.field_crop.field_id])
@@ -405,7 +633,9 @@ def my_operations_view(request):
     if filter_param == "today":
         ops = ops.filter(date=today)
     elif filter_param == "week":
-        ops = ops.filter(date__gte=today - timedelta(days=7))
+        week_start = today - timedelta(days=today.weekday())
+        week_end = week_start + timedelta(days=6)
+        ops = ops.filter(date__gte=week_start, date__lte=week_end)
 
     # Block G: year filter
     if year_param:
@@ -444,16 +674,50 @@ def create_operation(request):
     if request.user.role not in ["owner", "agronomist"]:
         return HttpResponseForbidden("You are not allowed to create operations")
 
+    owner = get_active_owner_for_user(request.user, request)
+    if request.user.role == "agronomist" and (not owner or not can_manage_operations_for_owner(request.user, owner)):
+        return HttpResponseForbidden("You are not allowed to create operations")
+
     if request.method == "POST":
+        post_data = request.POST.copy()
+        custom_type_name = post_data.get("new_operation_type", "").strip()
+        if custom_type_name:
+            op_type, _ = OperationType.objects.get_or_create(
+                owner=owner,
+                name=custom_type_name,
+            )
+            post_data["type"] = str(op_type.pk)
+
         schedule_json = request.POST.get("schedule")
         form = OperationForm(
-            request.POST,
+            post_data,
             user=request.user,
             schedule_mode=bool(schedule_json),
         )
 
         if form.is_valid():
             base_op = form.save(commit=False)
+            field_id = request.POST.get("field")
+            crop_id = request.POST.get("crop")
+            season_id = request.POST.get("season")
+            logger.info(
+                "create_operation POST selection user_id=%s field_id=%s crop_id=%s season_id=%s",
+                request.user.id,
+                field_id,
+                crop_id,
+                season_id,
+            )
+
+            try:
+                base_op.field_crop = _resolve_field_crop_for_operation(
+                    request=request,
+                    field_id=field_id,
+                    crop_id=crop_id,
+                    season_id=season_id,
+                )
+            except (FieldCrop.DoesNotExist, ValueError, TypeError):
+                form.add_error(None, "Invalid field/crop/season combination")
+                return render(request, "core/create_operation.html", _get_create_operation_context(request, form))
 
             resources = request.POST.getlist("resource")
             quantities = request.POST.getlist("quantity")
@@ -465,128 +729,94 @@ def create_operation(request):
                 qty = float(qty)
                 resource_map[r_id] = resource_map.get(r_id, 0) + qty
 
-            if not resource_map:
+            if form.errors:
+                return render(request, "core/create_operation.html", _get_create_operation_context(request, form))
+            elif not resource_map:
                 return HttpResponseForbidden("At least one resource required")
-
-            if not base_op.performed_by:
+            elif not base_op.performed_by:
                 return HttpResponseForbidden("Worker not selected")
-
-            if base_op.performed_by.role != "worker":
+            elif base_op.performed_by.role != "worker":
                 return HttpResponseForbidden("Invalid worker")
-
-            # Handle per-resource price overrides (Block A)
-            if request.user.role == "owner":
-                from core.models import ResourcePrice
-                for r_id_str in resource_map:
-                    price_str = request.POST.get(f"price_{r_id_str}")
-                    if price_str:
-                        try:
-                            new_price = float(price_str)
-                            if new_price > 0:
-                                ResourcePrice.objects.update_or_create(
-                                    owner=request.user,
-                                    resource_id=int(r_id_str),
-                                    defaults={"price": new_price},
-                                )
-                        except (ValueError, TypeError):
-                            pass
-
-            # Build schedule from POST JSON or single form date
-            schedule_json = request.POST.get("schedule")
-            if schedule_json:
-                try:
-                    schedule = json.loads(schedule_json)
-                except (ValueError, TypeError):
-                    schedule = [{"date": form.cleaned_data["date"].isoformat()}]
             else:
-                schedule = [{"date": form.cleaned_data["date"].isoformat()}]
+                # Handle per-resource price overrides (Block A)
+                if request.user.role == "owner":
+                    from core.models import ResourcePrice
+                    for r_id_str in resource_map:
+                        price_str = request.POST.get(f"price_{r_id_str}")
+                        if price_str:
+                            try:
+                                new_price = float(price_str)
+                                if new_price > 0:
+                                    ResourcePrice.objects.update_or_create(
+                                        owner=request.user,
+                                        resource_id=int(r_id_str),
+                                        defaults={"price": new_price},
+                                    )
+                            except (ValueError, TypeError):
+                                pass
 
-            today = now().date()
-            from datetime import date as date_cls
-            for item in schedule:
-                item_date = date_cls.fromisoformat(item["date"])
-                op_status = base_op.status
-                if op_status == "planned" and item_date < today:
-                    op_status = "done"
-
-                op = Operation.objects.create(
-                    field_crop=base_op.field_crop,
-                    type=base_op.type,
-                    date=item_date,
-                    status=op_status,
-                    performed_by=base_op.performed_by,
-                    description=base_op.description,
-                )
-
-                # Support per-date resource overrides from preview flow
-                if "resources" in item and item["resources"]:
-                    for r in item["resources"]:
-                        OperationResource.objects.create(
-                            operation=op,
-                            resource_id=r["id"],
-                            quantity=r["quantity"],
-                        )
+                # Build schedule from POST JSON or single form date
+                schedule_json = request.POST.get("schedule")
+                if schedule_json:
+                    try:
+                        schedule = json.loads(schedule_json)
+                    except (ValueError, TypeError):
+                        schedule = [{"date": form.cleaned_data["date"].isoformat()}]
                 else:
-                    # Clone base resources to every operation
-                    for r_id, qty in resource_map.items():
-                        OperationResource.objects.create(
-                            operation=op,
-                            resource_id=r_id,
-                            quantity=qty,
-                        )
+                    schedule = [{"date": form.cleaned_data["date"].isoformat()}]
 
-            next_url = request.POST.get("next") or request.GET.get("next")
-            if next_url:
-                return redirect(next_url)
-            return redirect(get_home_url(request.user))
+                today = now().date()
+                from datetime import date as date_cls
+                for item in schedule:
+                    item_date = date_cls.fromisoformat(item["date"])
+                    op_status = base_op.status
+                    if op_status == "planned" and item_date < today:
+                        op_status = "done"
+
+                    op = Operation.objects.create(
+                        field_crop=base_op.field_crop,
+                        type=base_op.type,
+                        date=item_date,
+                        status=op_status,
+                        performed_by=base_op.performed_by,
+                        description=base_op.description,
+                    )
+
+                    if op.status == Operation.Status.DONE and _is_harvest_operation(op.type):
+                        if not op.field_crop.harvest_date or item_date > op.field_crop.harvest_date:
+                            op.field_crop.harvest_date = item_date
+                            op.field_crop.save(update_fields=["harvest_date", "updated_at"])
+
+                    # Support per-date resource overrides from preview flow
+                    if "resources" in item and item["resources"]:
+                        for r in item["resources"]:
+                            OperationResource.objects.create(
+                                operation=op,
+                                resource_id=r["id"],
+                                quantity=r["quantity"],
+                            )
+                    else:
+                        # Clone base resources to every operation
+                        for r_id, qty in resource_map.items():
+                            OperationResource.objects.create(
+                                operation=op,
+                                resource_id=r_id,
+                                quantity=qty,
+                            )
+
+                next_url = request.POST.get("next") or request.GET.get("next")
+                if next_url:
+                    return redirect(next_url)
+                return redirect(get_home_url(request.user))
 
         else:
-            import logging
-            logger = logging.getLogger(__name__)
             logger.warning("create_operation form invalid: %s", form.errors)
+            return render(request, "core/create_operation.html", _get_create_operation_context(request, form))
 
     else:
         form = OperationForm(user=request.user)
 
-    # Cascade data for Field → Season → FieldCrop
-    if request.user.role == "agronomist":
-        owner_ids = AgronomistAssignment.objects.filter(
-            agronomist=request.user
-        ).values_list("owner_id", flat=True)
-        fields_qs = Field.objects.filter(owner_id__in=owner_ids).select_related("owner")
-        fc_qs = FieldCrop.objects.filter(field__owner_id__in=owner_ids).select_related("field", "season", "crop")
-        seasons_qs = Season.objects.filter(owner_id__in=owner_ids)
-    else:
-        fields_qs = Field.objects.filter(owner=request.user).select_related("owner")
-        fc_qs = FieldCrop.objects.filter(field__owner=request.user).select_related("field", "season", "crop")
-        seasons_qs = Season.objects.filter(owner=request.user)
-
-    fields_data = [{"id": f.id, "name": f.name, "owner_id": f.owner_id} for f in fields_qs]
-    field_crops_data = [
-        {"id": fc.id, "field_id": fc.field_id, "season_id": fc.season_id, "name": fc.crop.name}
-        for fc in fc_qs
-    ]
-    seasons_data = [
-        {
-            "id": s.id,
-            "name": str(s),
-            "owner_id": s.owner_id,
-            "start_date": s.start_date.isoformat(),
-            "end_date": s.end_date.isoformat(),
-        }
-        for s in seasons_qs.order_by("-start_date")
-    ]
-
-    return render(request, "core/create_operation.html", {
-        "form": form,
-        "resources": Resource.objects.all(),
-        "fields": fields_data,
-        "field_crops": field_crops_data,
-        "seasons": seasons_data,
-        "preselect_field_id": request.GET.get("field_id", ""),
-        "preselect_season_id": request.GET.get("season_id", ""),
-        "next": request.GET.get("next", ""),
-    })
+    return render(request, "core/create_operation.html", _get_create_operation_context(request, form))
 
 @login_required
 def home_redirect(request):
@@ -702,6 +932,8 @@ def agronomist_owner_detail(request, owner_id):
     if not link:
         return redirect("agronomist-dashboard")
 
+    request.session["active_owner_id"] = owner_id
+
     year_param = request.GET.get("year", "")
     fields = Field.objects.filter(owner_id=owner_id).distinct().order_by("name")
 
@@ -723,6 +955,7 @@ def agronomist_owner_detail(request, owner_id):
         "owner": link.owner,
         "year": year_param,
         "available_years": available_years,
+        "year_filter_applies_to_seasons": bool(year_param),
     })
 
 
@@ -746,11 +979,12 @@ def agronomist_field_operations(request, pk):
 
     operations = Operation.objects.filter(
         field_crop=field_crop
-    ).select_related("field_crop__crop", "performed_by").prefetch_related("operation_resources__resource")
+    ).select_related("field_crop__crop", "type", "performed_by").prefetch_related("operation_resources__resource")
 
     return render(request, "core/agronomist_operations.html", {
         "field_crop": field_crop,
         "operations": operations,
+        "can_manage_operations": bool(link and link.can_manage_operations),
     })
 
 @login_required
@@ -775,9 +1009,43 @@ def toggle_finance_access(request, pk):
 
 
 @login_required
-def create_season(request):
+@require_POST
+def toggle_agronomist_permission(request, pk, permission_name):
     if request.user.role != "owner":
-        return HttpResponseForbidden("Only owners can create seasons")
+        return JsonResponse({"success": False}, status=403)
+
+    allowed_permissions = {
+        "finance": "can_view_finances",
+        "operations": "can_manage_operations",
+        "seasons": "can_manage_seasons",
+        "field-crops": "can_manage_field_crops",
+    }
+    field_name = allowed_permissions.get(permission_name)
+    if not field_name:
+        return JsonResponse({"success": False}, status=404)
+
+    link = get_object_or_404(
+        AgronomistAssignment,
+        pk=pk,
+        owner=request.user,
+    )
+
+    current_value = getattr(link, field_name)
+    setattr(link, field_name, not current_value)
+    link.save(update_fields=[field_name])
+
+    return JsonResponse({
+        "success": True,
+        "permission": permission_name,
+        "value": getattr(link, field_name),
+    })
+
+
+@login_required
+def create_season(request):
+    owner = get_active_owner_for_user(request.user, request)
+    if not owner or not can_manage_seasons_for_owner(request.user, owner):
+        return HttpResponseForbidden("You are not allowed to create seasons")
 
     next_url = request.GET.get("next") or request.POST.get("next") or "fields-list"
 
@@ -785,9 +1053,9 @@ def create_season(request):
         form = SeasonCreateForm(request.POST)
         if form.is_valid():
             season = form.save(commit=False)
-            season.owner = request.user
+            season.owner = owner
             if Season.objects.filter(
-                owner=request.user,
+                owner=owner,
                 name=season.name,
                 year=season.start_date.year,
             ).exists():
@@ -809,7 +1077,142 @@ def create_season(request):
     return render(request, "core/create_season.html", {
         "form": form,
         "next": next_url,
+        "form_title": "Создать сезон",
+        "submit_label": "Создать сезон",
     })
+
+
+@login_required
+def edit_season(request, pk):
+    season = _get_manageable_season_or_404(request, pk) if request.user.role == "admin" else get_user_season_or_404(request.user, pk)
+    if not season or not can_manage_seasons_for_owner(request.user, season.owner):
+        return HttpResponseForbidden("You are not allowed to edit this season")
+
+    default_next_url = reverse("fields-list")
+    first_field_crop = season.field_crops.select_related("field").first()
+    if first_field_crop:
+        default_next_url = f"{reverse('field-detail', args=[first_field_crop.field_id])}?season={season.id}"
+    next_url = request.GET.get("next") or request.POST.get("next") or default_next_url
+    if request.method == "POST":
+        form = SeasonCreateForm(request.POST, instance=season)
+        if form.is_valid():
+            season = form.save(commit=False)
+            try:
+                season.save()
+            except (IntegrityError, ValidationError) as exc:
+                message = "Season already exists" if isinstance(exc, IntegrityError) else "; ".join(exc.messages)
+                messages.error(request, message)
+            else:
+                messages.success(request, f"Season '{season}' updated successfully.")
+                return redirect(next_url)
+    else:
+        form = SeasonCreateForm(instance=season)
+
+    return render(request, "core/create_season.html", {
+        "form": form,
+        "next": next_url,
+        "form_title": "Редактировать сезон",
+        "submit_label": "Сохранить изменения",
+    })
+
+
+@login_required
+@require_POST
+def delete_season(request, pk):
+    season = _get_manageable_season_or_404(request, pk) if request.user.role == "admin" else get_user_season_or_404(request.user, pk)
+    if not season or not can_manage_seasons_for_owner(request.user, season.owner):
+        return HttpResponseForbidden("You are not allowed to delete this season")
+
+    next_url = request.POST.get("next") or reverse("fields-list")
+    season.delete()
+    messages.success(request, "Season deleted.")
+    return redirect(next_url)
+
+
+@login_required
+def create_field_crop(request):
+    owner = get_active_owner_for_user(request.user, request)
+    if request.user.role != "admin" and (not owner or not can_manage_field_crops_for_owner(request.user, owner)):
+        return HttpResponseForbidden("You are not allowed to create field crops")
+
+    next_url = request.GET.get("next") or request.POST.get("next")
+    preselect_field_id = request.GET.get("field") or request.POST.get("field")
+    preselect_season_id = request.GET.get("season") or request.POST.get("season")
+
+    if request.method == "POST":
+        form = FieldCropCreateForm(request.POST, user=request.user)
+        if form.is_valid():
+            field_crop = form.save()
+            messages.success(request, "Crop added to field.")
+            if next_url:
+                return redirect(next_url)
+            detail_url = reverse("field-detail", args=[field_crop.field_id])
+            return redirect(f"{detail_url}?season={field_crop.season_id}")
+    else:
+        initial = {}
+        if preselect_field_id:
+            initial["field"] = preselect_field_id
+        if preselect_season_id:
+            initial["season"] = preselect_season_id
+        form = FieldCropCreateForm(initial=initial, user=request.user)
+
+    return render(
+        request,
+        "core/create_field_crop.html",
+        _get_field_crop_form_context(
+            request,
+            form,
+            next_url=next_url or "",
+            preselect_field_id=preselect_field_id or "",
+            preselect_season_id=preselect_season_id or "",
+            form_title="Добавить культуру",
+            submit_label="Добавить культуру",
+        ),
+    )
+
+
+@login_required
+def edit_field_crop(request, pk):
+    field_crop = _get_manageable_field_crop_or_404(request, pk) if request.user.role == "admin" else get_user_field_crop_or_404(request.user, pk)
+    if not field_crop or not can_manage_field_crops_for_owner(request.user, field_crop.field.owner):
+        return HttpResponseForbidden("You are not allowed to edit this field crop")
+
+    next_url = request.GET.get("next") or request.POST.get("next") or f"{reverse('field-detail', args=[field_crop.field_id])}?season={field_crop.season_id}"
+    if request.method == "POST":
+        form = FieldCropCreateForm(request.POST, instance=field_crop, user=request.user)
+        if form.is_valid():
+            field_crop = form.save()
+            messages.success(request, "Crop assignment updated.")
+            return redirect(next_url)
+    else:
+        form = FieldCropCreateForm(instance=field_crop, user=request.user)
+
+    return render(
+        request,
+        "core/create_field_crop.html",
+        _get_field_crop_form_context(
+            request,
+            form,
+            next_url=next_url,
+            preselect_field_id=str(field_crop.field_id),
+            preselect_season_id=str(field_crop.season_id),
+            form_title="Редактировать культуру",
+            submit_label="Сохранить изменения",
+        ),
+    )
+
+
+@login_required
+@require_POST
+def delete_field_crop(request, pk):
+    field_crop = _get_manageable_field_crop_or_404(request, pk) if request.user.role == "admin" else get_user_field_crop_or_404(request.user, pk)
+    if not field_crop or not can_manage_field_crops_for_owner(request.user, field_crop.field.owner):
+        return HttpResponseForbidden("You are not allowed to delete this field crop")
+
+    next_url = request.POST.get("next") or f"{reverse('field-detail', args=[field_crop.field_id])}?season={field_crop.season_id}"
+    field_crop.delete()
+    messages.success(request, "Crop assignment deleted.")
+    return redirect(next_url)
 
 
 # ─────────────────────────────────────────────
@@ -822,9 +1225,12 @@ def field_list_view(request):
     today = now().date()
 
     if request.user.role == "agronomist":
+        active_owner_id = request.session.get("active_owner_id")
         owner_ids = AgronomistAssignment.objects.filter(
             agronomist=request.user
         ).values_list("owner_id", flat=True)
+        if active_owner_id and active_owner_id in owner_ids:
+            owner_ids = [active_owner_id]
         fields_qs = Field.objects.filter(owner_id__in=owner_ids).select_related("owner")
     else:
         fields_qs = Field.objects.filter(owner=request.user)
@@ -843,7 +1249,7 @@ def field_list_view(request):
         total_crop_count = field_crops.count()
         active_crop_count = sum(
             1 for fc in field_crops
-            if fc.get_computed_status() == "active"
+            if fc.get_computed_status() == FieldCrop.Status.ACTIVE
         )
 
         field_data.append({
@@ -891,24 +1297,33 @@ def field_detail_view(request, pk):
     operations_for_season = []
     if selected_season:
         fcs = FieldCrop.objects.filter(
-            field=field, season=selected_season
+            field=field, season__year=selected_season.year
         ).prefetch_related(
             "operations__operation_resources__resource",  # Block D
             "operations__performed_by",
+            "operations__type",
         ).select_related("crop")
 
+        operations_by_id = {}
         for fc in fcs:
-            ops_qs = list(fc.operations.all())
+            ops_qs = list(
+                Operation.objects.filter(
+                    field_crop__field_id=fc.field_id,
+                    field_crop__crop_id=fc.crop_id,
+                    field_crop__season__year=selected_season.year
+                ).select_related("performed_by", "type")
+            )
             field_crops.append({
                 "fc": fc,
                 "computed_status": fc.get_computed_status(),
                 "ops_total": len(ops_qs),
                 "ops_done": sum(1 for o in ops_qs if o.status == "done"),
             })
-            operations_for_season.extend(ops_qs)
+            for op in ops_qs:
+                operations_by_id[op.id] = op
 
         # Sort operations by date descending
-        operations_for_season.sort(key=lambda o: o.date, reverse=True)
+        operations_for_season = sorted(operations_by_id.values(), key=lambda o: o.date, reverse=True)
 
     return render(request, "core/field_detail.html", {
         "field": field,
@@ -919,4 +1334,9 @@ def field_detail_view(request, pk):
         "field_crops": field_crops,
         "operations": operations_for_season,
         "is_owner": request.user.role == "owner",
+        "status_active": FieldCrop.Status.ACTIVE,
+        "status_harvested": FieldCrop.Status.HARVESTED,
+        "can_manage_operations": can_manage_operations_for_owner(request.user, field.owner),
+        "can_manage_seasons": can_manage_seasons_for_owner(request.user, field.owner),
+        "can_manage_field_crops": can_manage_field_crops_for_owner(request.user, field.owner),
     })
