@@ -248,8 +248,8 @@ class Operation(TimeStampedModel):
         HARVESTING = "сбор урожая", "Сбор урожая"
 
     class Status(models.TextChoices):
-        PLANNED = "planned", "Planned"
-        DONE = "done", "Done"
+        PLANNED = "запланировано", "Запланировано"
+        DONE = "выполнено", "Выполнено"
 
     field_crop = models.ForeignKey(
         FieldCrop,
