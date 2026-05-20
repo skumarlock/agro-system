@@ -1,40 +1,72 @@
 {% extends "base.html" %}
+{% load static %}
 
-{% block title %}Login | Agro System{% endblock %}
+{% block title %}Вход | Agro System{% endblock %}
 
 {% block content %}
 
-{% load static %}
-<script src="{% static 'js/theme.js' %}"></script>
-
-<div class="row justify-content-center">
-    <div class="d-flex justify-content-end mb-3">
-        <button type="button" onclick="toggleTheme()" class="btn btn-sm border-0">
-            <img id="theme-icon" src="{% static 'icons/icons8-dark-mode-100.png' %}" width="18">
-        </button>
-    </div>
+<div class="row justify-content-center mt-3">
     <div class="col-md-6 col-lg-4">
         <div class="card border-0 shadow-sm">
-            <div class="card-body p-4">
-                <h1 class="h3 mb-3 text-center">Login</h1>
-                <form method="post">
+            <div class="card-body p-4 p-md-5">
+                <div class="text-center mb-4">
+                    <span style="font-size: 2.5rem;">🌾</span>
+                    <h1 class="h3 mt-2 mb-1 fw-bold">Вход в систему</h1>
+                    <p class="text-muted small">Agro System — управление хозяйством</p>
+                </div>
+
+                {% if form.non_field_errors %}
+                <div class="alert alert-danger">
+                    {% for error in form.non_field_errors %}
+                        <div>{{ error }}</div>
+                    {% endfor %}
+                </div>
+                {% endif %}
+
+                <form method="post" novalidate>
                     {% csrf_token %}
-                    {{ form.non_field_errors }}
                     <div class="mb-3">
-                        <label for="{{ form.username.id_for_label }}" class="form-label">Username</label>
-                        <input type="text" name="{{ form.username.html_name }}" id="{{ form.username.id_for_label }}"
-                            class="form-control" value="{{ form.username.value|default_if_none:'' }}" required>
+                        <label for="{{ form.username.id_for_label }}" class="form-label fw-semibold">
+                            Имя пользователя
+                        </label>
+                        <input type="text"
+                               name="{{ form.username.html_name }}"
+                               id="{{ form.username.id_for_label }}"
+                               class="form-control {% if form.username.errors %}is-invalid{% endif %}"
+                               value="{{ form.username.value|default_if_none:'' }}"
+                               autofocus
+                               required>
+                        {% for error in form.username.errors %}
+                        <div class="invalid-feedback">{{ error }}</div>
+                        {% endfor %}
                     </div>
-                    <div class="mb-3">
-                        <label for="{{ form.password.id_for_label }}" class="form-label">Password</label>
-                        <input type="password" name="{{ form.password.html_name }}"
-                            id="{{ form.password.id_for_label }}" class="form-control" required>
+                    <div class="mb-4">
+                        <label for="{{ form.password.id_for_label }}" class="form-label fw-semibold">
+                            Пароль
+                        </label>
+                        <input type="password"
+                               name="{{ form.password.html_name }}"
+                               id="{{ form.password.id_for_label }}"
+                               class="form-control {% if form.password.errors %}is-invalid{% endif %}"
+                               required>
+                        {% for error in form.password.errors %}
+                        <div class="invalid-feedback">{{ error }}</div>
+                        {% endfor %}
                     </div>
-                    <button type="submit" class="btn btn-success w-100">Sign in</button>
+                    <button type="submit" class="btn btn-success w-100 fw-semibold py-2">Войти</button>
                     {% if next %}
                     <input type="hidden" name="next" value="{{ next }}">
                     {% endif %}
                 </form>
+
+                <hr class="my-4">
+
+                <p class="text-center text-muted small mb-0">
+                    Нет аккаунта?
+                    <a href="{% url 'register' %}" class="text-success fw-semibold text-decoration-none">
+                        Зарегистрироваться
+                    </a>
+                </p>
             </div>
         </div>
     </div>

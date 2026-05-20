@@ -66,6 +66,7 @@ from core.forms import (
     FieldCropCreateForm,
     InviteAgronomistForm,
     OperationForm,
+    OwnerRegistrationForm,
     PurchaseForm,
     RecommendationForm,
     SeasonCreateForm,
@@ -1045,6 +1046,26 @@ def home_redirect(request):
         return redirect("agronomist-dashboard")
 
     return redirect("dashboard")
+
+
+def register_view(request):
+    """Public self-registration page. Creates a new owner account."""
+    if request.user.is_authenticated:
+        return redirect(get_home_url(request.user))
+
+    if request.method == "POST":
+        form = OwnerRegistrationForm(request.POST)
+        if form.is_valid():
+            user = form.save()
+            from django.contrib.auth import login as auth_login
+            auth_login(request, user)
+            messages.success(request, f"Добро пожаловать, {user.username}! Аккаунт успешно создан.")
+            return redirect("dashboard")
+    else:
+        form = OwnerRegistrationForm()
+
+    return render(request, "registration/register.html", {"form": form})
+
 
 @login_required
 def create_worker(request):

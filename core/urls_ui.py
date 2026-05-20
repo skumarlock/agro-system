@@ -38,9 +38,13 @@ from core.views_ui import (
     devices_view,
     add_device_data,
     delete_device,
+    register_view,
 )
 
 urlpatterns = [
+    # Auth
+    path("register/", register_view, name="register"),
+
     # Home / redirect
     path("", home_redirect, name="home"),
 

@@ -61,7 +61,68 @@ class OperationForm(forms.ModelForm):
                 models.Q(owner__isnull=True) | models.Q(**owner_filter)
             ).distinct()
 
+class OwnerRegistrationForm(forms.ModelForm):
+    """Public self-registration form. Creates a user with role=owner."""
+
+    password1 = forms.CharField(
+        label="Пароль",
+        widget=forms.PasswordInput(attrs={"class": "form-control", "placeholder": "Минимум 8 символов"}),
+    )
+    password2 = forms.CharField(
+        label="Подтвердите пароль",
+        widget=forms.PasswordInput(attrs={"class": "form-control", "placeholder": "Повторите пароль"}),
+    )
+
+    class Meta:
+        model = User
+        fields = ["username", "email", "first_name", "last_name"]
+        labels = {
+            "username": "Имя пользователя",
+            "email": "Email",
+            "first_name": "Имя",
+            "last_name": "Фамилия",
+        }
+        widgets = {
+            "username": forms.TextInput(attrs={"class": "form-control", "placeholder": "Латинские буквы и цифры"}),
+            "email": forms.EmailInput(attrs={"class": "form-control", "placeholder": "example@mail.com"}),
+            "first_name": forms.TextInput(attrs={"class": "form-control"}),
+            "last_name": forms.TextInput(attrs={"class": "form-control"}),
+        }
+
+    def clean_email(self):
+        email = self.cleaned_data.get("email")
+        if email and User.objects.filter(email=email).exists():
+            raise forms.ValidationError("Этот email уже зарегистрирован.")
+        return email
+
+    def clean_username(self):
+        username = self.cleaned_data.get("username")
+        if username and User.objects.filter(username=username).exists():
+            raise forms.ValidationError("Это имя пользователя уже занято.")
+        return username
+
+    def clean(self):
+        cleaned_data = super().clean()
+        p1 = cleaned_data.get("password1")
+        p2 = cleaned_data.get("password2")
+        if p1 and p2 and p1 != p2:
+            self.add_error("password2", "Пароли не совпадают.")
+        if p1 and len(p1) < 8:
+            self.add_error("password1", "Пароль должен содержать минимум 8 символов.")
+        return cleaned_data
+
+    def save(self, commit=True):
+        user = super().save(commit=False)
+        user.set_password(self.cleaned_data["password1"])
+        user.role = "owner"
+        user.owner = None
+        if commit:
+            user.save()
+        return user
+
+
 class WorkerRegistrationForm(forms.ModelForm):
+
     password = forms.CharField(
         widget=forms.PasswordInput(attrs={"class": "form-control"})
     )
