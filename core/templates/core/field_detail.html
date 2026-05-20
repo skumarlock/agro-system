@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load formatters %}
 
 {% block title %}{{ field.name }} Детали поля | Agro System{% endblock %}
 
@@ -129,6 +130,79 @@
                 {% if can_manage_operations %}
                 <a href="{% url 'create-operation' %}?field_id={{ field.pk }}{% if selected_season %}&season_id={{ selected_season.id }}{% endif %}&next={{ request.get_full_path|urlencode }}" class="btn btn-outline-primary">Добавить операцию</a>
                 {% endif %}
+            </div>
+        </div>
+    </section>
+
+    <section class="row g-3">
+        <div class="col-lg-4">
+            <div class="field-detail-section-card h-100">
+                <div class="card-body">
+                    <h2 class="h6">Погода</h2>
+                    <div class="d-flex justify-content-between">
+                        <span class="text-muted">Температура</span>
+                        <strong>{{ weather.temp }} C</strong>
+                    </div>
+                    <div class="d-flex justify-content-between">
+                        <span class="text-muted">Осадки</span>
+                        <strong>{{ weather.precipitation }} mm</strong>
+                    </div>
+                    <p class="small text-muted mb-0 mt-2">{{ weather.suggestion }}</p>
+                    <div class="mt-2">
+                        {% for day in weather.days %}
+                        <div class="small d-flex justify-content-between border-top py-1">
+                            <span>{{ day.date }}</span>
+                            <span>{{ day.temp }} C · {{ day.precipitation }} мм</span>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-4">
+            <div class="field-detail-section-card h-100">
+                <div class="card-body">
+                    <h2 class="h6">Устройства</h2>
+                    {% for device in devices %}
+                    <div class="border-bottom py-2">
+                        <div class="d-flex justify-content-between gap-2">
+                            <span>{{ device.type }}</span>
+                            <span class="text-muted">{{ device.status|human_status }}</span>
+                        </div>
+                        {% with latest=device.data_points.first %}
+                        <div class="small text-muted">
+                            {% if latest %}
+                            {{ latest.value }} · {{ latest.created_at }}
+                            {% else %}
+                            Значений пока нет
+                            {% endif %}
+                        </div>
+                        {% endwith %}
+                    </div>
+                    {% empty %}
+                    <p class="text-muted small mb-0">Устройства не подключены.</p>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-4">
+            <div class="field-detail-section-card h-100">
+                <div class="card-body">
+                    <h2 class="h6">Анализ</h2>
+                    {% for item in analyses %}
+                    <div class="border-bottom py-2">
+                        <div class="d-flex justify-content-between">
+                            <span>NDVI</span>
+                            <span class="text-muted">{{ item.ndvi|default:"-" }}</span>
+                        </div>
+                        {% if item.image %}
+                        <a class="small" href="{{ item.image.url }}" target="_blank">Открыть снимок</a>
+                        {% endif %}
+                    </div>
+                    {% empty %}
+                    <p class="text-muted small mb-0">Заготовка для спутникового анализа.</p>
+                    {% endfor %}
+                </div>
             </div>
         </div>
     </section>

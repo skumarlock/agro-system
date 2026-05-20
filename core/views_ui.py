@@ -3,6 +3,7 @@ import json
 import logging
 from datetime import timedelta
 from collections import Counter, defaultdict
+from decimal import Decimal
 
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
@@ -10,8 +11,24 @@ from django.views.decorators.http import require_POST
 from django.shortcuts import render, redirect, get_object_or_404
 from django.utils.timezone import now
 from django.db import IntegrityError
+from django.db.models import Q, Sum
 from django.core.exceptions import ValidationError
 from core.services.operations import get_user_operations
+from core.services.ai import build_ai_chat_reply, get_rule_based_alerts
+from core.services.chat import (
+    get_available_contacts,
+    get_messages,
+    get_or_create_thread,
+    list_threads,
+    send_message,
+)
+from core.services.inventory import (
+    create_purchase as create_purchase_record,
+    get_stock_warnings,
+    manual_adjust_stock,
+    sync_operation_stock,
+)
+from core.services.weather import get_field_weather
 from django.core.paginator import Paginator
 from core.services.currency import update_usd_rate
 from core.services.utils import sort_resources
@@ -23,12 +40,36 @@ from core.services import (
     get_user_field_crop_or_404,
     get_user_season_or_404,
 )
-from core.models import Operation, Season, User, AgronomistAssignment, FieldCrop, OperationResource, Field, OperationType
+from core.models import (
+    ChatThread,
+    Device,
+    DeviceData,
+    FieldAnalysis,
+    Operation,
+    OwnerAIConfig,
+    Recommendation,
+    Season,
+    Stock,
+    StockLog,
+    Supplier,
+    User,
+    AgronomistAssignment,
+    FieldCrop,
+    OperationResource,
+    Field,
+    Message,
+    OperationType,
+)
 from core.forms import (
+    DeviceDataForm,
+    DeviceForm,
     FieldCropCreateForm,
     InviteAgronomistForm,
     OperationForm,
+    PurchaseForm,
+    RecommendationForm,
     SeasonCreateForm,
+    StockAdjustForm,
     WorkerRegistrationForm,
 )
 from django.http import HttpResponseForbidden, JsonResponse
@@ -36,6 +77,79 @@ from django.urls import reverse
 from core.models import Resource
 
 logger = logging.getLogger(__name__)
+
+
+RUSSIAN_VALUE_LABELS = {
+    "active": "Активно",
+    "manual": "Ручной ввод",
+    "other": "Другое",
+    "purchase": "Закупка",
+    "operation": "Операция",
+    "planned": "Запланировано",
+    "done": "Выполнено",
+}
+
+
+def ru_value(value):
+    return RUSSIAN_VALUE_LABELS.get(str(value), str(value).replace("_", " ").title())
+
+
+def is_water_resource_summary(resource):
+    resource_type = str(resource.get("type") or "").strip().lower()
+    resource_name = str(resource.get("name") or "").strip().lower()
+    return (
+        resource_type == str(Resource.Type.WATER).lower()
+        or "вода" in resource_type
+        or "вод" in resource_type
+        or "water" in resource_type
+        or "вода" in resource_name
+        or "вод" in resource_name
+        or "water" in resource_name
+    )
+
+
+def attach_recommendation_target_labels(recommendations):
+    recommendations = list(recommendations)
+    target_ids = defaultdict(list)
+    for rec in recommendations:
+        target_ids[rec.target_type].append(rec.target_id)
+
+    fields = Field.objects.filter(pk__in=target_ids.get("field", [])).in_bulk()
+    operations = Operation.objects.filter(
+        pk__in=target_ids.get("operation", [])
+    ).select_related("type", "field_crop__field", "field_crop__crop").in_bulk()
+    field_crops = FieldCrop.objects.filter(
+        pk__in=target_ids.get("crop", [])
+    ).select_related("field", "crop", "season").in_bulk()
+
+    type_labels = {
+        "field": "Поле",
+        "operation": "Операция",
+        "crop": "Культура",
+    }
+
+    for rec in recommendations:
+        rec.target_type_label = type_labels.get(rec.target_type, ru_value(rec.target_type))
+        rec.target_label = f"{rec.target_type_label} #{rec.target_id}"
+        if rec.target_type == "field":
+            field = fields.get(rec.target_id)
+            if field:
+                rec.target_label = f"Поле: {field.name}"
+        elif rec.target_type == "operation":
+            operation = operations.get(rec.target_id)
+            if operation:
+                rec.target_label = (
+                    f"Операция: {operation.type.name} / "
+                    f"{operation.field_crop.field.name} / {operation.date}"
+                )
+        elif rec.target_type == "crop":
+            field_crop = field_crops.get(rec.target_id)
+            if field_crop:
+                rec.target_label = (
+                    f"Культура: {field_crop.crop.name} / "
+                    f"{field_crop.field.name} / {field_crop.season}"
+                )
+    return recommendations
 
 
 def get_home_url(user):
@@ -280,6 +394,56 @@ def _is_harvest_operation(operation_type):
     type_name = (operation_type.name or "").strip().lower()
     return type_name in {"сбор урожая", "harvesting", "harvest"}
 
+def _parse_operation_resource_rows(request):
+    resource_ids = request.POST.getlist("resource")
+    quantities = request.POST.getlist("quantity")
+    resource_map = {}
+    errors = []
+
+    for resource_id, quantity in zip(resource_ids, quantities):
+        if not resource_id and not quantity:
+            continue
+        if not resource_id:
+            errors.append("Выберите ресурс для каждой заполненной строки.")
+            continue
+        try:
+            quantity_decimal = Decimal(str(quantity))
+        except Exception:
+            errors.append("Количество ресурса должно быть числом.")
+            continue
+        if quantity_decimal <= 0:
+            errors.append("Количество ресурса должно быть больше нуля.")
+            continue
+        resource_map[int(resource_id)] = resource_map.get(int(resource_id), Decimal("0")) + quantity_decimal
+
+    if not resource_map:
+        errors.append("Добавьте хотя бы один ресурс.")
+
+    return resource_map, errors
+
+
+def _get_done_operation_stock_warnings(operation, resource_map):
+    owner = operation.field_crop.field.owner
+    warnings = []
+    for resource_id, required in resource_map.items():
+        stock = Stock.objects.filter(owner=owner, resource_id=resource_id).first()
+        current = stock.quantity_current if stock else Decimal("0")
+        own_consumption = -(
+            StockLog.objects.filter(
+                owner=owner,
+                resource_id=resource_id,
+                source_type=StockLog.SourceType.OPERATION,
+                source_id=operation.pk,
+            ).aggregate(total=Sum("delta"))["total"]
+            or Decimal("0")
+        )
+        available = current + own_consumption
+        if available < required:
+            resource = Resource.objects.filter(pk=resource_id).first()
+            warnings.append((resource.name if resource else f"#{resource_id}", available, required))
+    return warnings
+
+
 @login_required
 def dashboard_view(request):
     if not is_owner_or_admin(request.user):
@@ -334,7 +498,7 @@ def dashboard_view(request):
     other = resources[6:]
     if other:
         other_sum = sum((r.get("cost") or 0) for r in other)
-        top.append({"name": "Other", "cost": other_sum, "type": "other"})
+        top.append({"name": "Другое", "cost": other_sum, "type": "other"})
 
     resources, next_order = sort_resources(resources, sort, order)
     if resources:
@@ -348,6 +512,7 @@ def dashboard_view(request):
     data["next_order"]  = next_order
     data["is_worker"]   = request.user.role == "worker"
     data["operations"]  = get_user_operations(request.user)
+    data["recent_operations"] = get_user_operations(request.user, limit=6)
     data["period"]      = period
     data["is_owner"]    = is_owner_or_admin(request.user)
     data["from_date"]   = from_date or ""
@@ -419,7 +584,7 @@ def dashboard_view(request):
             ],
             "cost_by_resource_type": [
                 {
-                    "type": resource_type.replace("_", " ").title(),
+                    "type": ru_value(resource_type),
                     "cost_local": cost,
                     "cost_usd": cost / usd_rate if usd_rate else 0,
                 }
@@ -427,6 +592,14 @@ def dashboard_view(request):
             ],
             "operations_over_time": ops_over_time,
         }
+        data["water_usage"] = sum(
+            (resource.get("quantity") or 0)
+            for resource in data["dashboard"]["resources"]
+            if is_water_resource_summary(resource)
+        )
+        first_field = Field.objects.filter(owner=request.user).order_by("name").first()
+        data["weather"] = get_field_weather(first_field) if first_field else None
+        data["ai_alerts"] = get_rule_based_alerts(request.user)
 
     return render(request, "core/dashboard.html", data)
 
@@ -557,15 +730,26 @@ def toggle_operation_status(request, pk):
     op = get_operation_for_user_or_403(request.user, pk)
     if not op:
         return HttpResponseForbidden("You are not allowed to update this operation")
-    if not can_manage_operations_for_owner(request.user, op.field_crop.field.owner):
+    worker_can_complete = request.user.role == "worker" and op.performed_by_id == request.user.id
+    if not worker_can_complete and not can_manage_operations_for_owner(request.user, op.field_crop.field.owner):
         return HttpResponseForbidden("You are not allowed to update this operation")
 
     if op.status == "done":
         op.status = "planned"
     else:
+        resource_map = {
+            item.resource_id: item.quantity
+            for item in op.operation_resources.all()
+        }
+        stock_warnings = get_stock_warnings(op.field_crop.field.owner, resource_map)
+        if stock_warnings:
+            for resource_name, current, required in stock_warnings:
+                messages.error(request, f"Недостаточно на складе: {resource_name}. Есть {current}, нужно {required}.")
+            return redirect(request.POST.get("next") or reverse("my-operations"))
         op.status = "done"
 
     op.save()
+    sync_operation_stock(op)
 
     # Preserve pagination and filter state
     page   = request.POST.get("page", "1")
@@ -597,16 +781,45 @@ def edit_operation(request, pk):
     if request.method == "POST":
         form = OperationForm(request.POST, instance=op, user=request.user)
         if form.is_valid():
-            form.save()
-            messages.success(request, "Operation updated.")
-            return redirect(f"{next_url}#op-{op.pk}")
+            resource_map, resource_errors = _parse_operation_resource_rows(request)
+            for error in resource_errors:
+                form.add_error(None, error)
+
+            edited_op = form.save(commit=False)
+            if edited_op.status == Operation.Status.DONE and not form.errors:
+                stock_warnings = _get_done_operation_stock_warnings(op, resource_map)
+                for resource_name, current, required in stock_warnings:
+                    form.add_error(None, f"Недостаточно на складе: {resource_name}. Доступно {current}, нужно {required}.")
+
+            if not form.errors:
+                edited_op.save()
+                edited_op.operation_resources.all().delete()
+                for resource_id, quantity in resource_map.items():
+                    OperationResource.objects.create(
+                        operation=edited_op,
+                        resource_id=resource_id,
+                        quantity=quantity,
+                    )
+                sync_operation_stock(edited_op)
+                op = edited_op
+                messages.success(request, "Operation updated.")
+                return redirect(f"{next_url}#op-{op.pk}")
     else:
         form = OperationForm(instance=op, user=request.user)
+
+    resource_rows = [
+        {"resource_id": item.resource_id, "quantity": item.quantity}
+        for item in op.operation_resources.all()
+    ]
+    if not resource_rows:
+        resource_rows = [{"resource_id": "", "quantity": ""}]
 
     return render(request, "core/edit_operation.html", {
         "form": form,
         "operation": op,
         "next": next_url,
+        "resources": Resource.objects.all().order_by("name"),
+        "resource_rows": resource_rows,
     })
 
 
@@ -744,6 +957,12 @@ def create_operation(request):
             elif base_op.performed_by.role != "worker":
                 return HttpResponseForbidden("Invalid worker")
             else:
+                stock_warnings = get_stock_warnings(base_op.field_crop.field.owner, resource_map)
+                if stock_warnings:
+                    for resource_name, current, required in stock_warnings:
+                        form.add_error(None, f"Недостаточно на складе: {resource_name}. Есть {current}, нужно {required}.")
+                    return render(request, "core/create_operation.html", _get_create_operation_context(request, form))
+
                 # Handle per-resource price overrides (Block A)
                 if request.user.role == "owner":
                     from core.models import ResourcePrice
@@ -809,6 +1028,7 @@ def create_operation(request):
                                 resource_id=r_id,
                                 quantity=qty,
                             )
+                    sync_operation_stock(op)
 
                 next_url = request.POST.get("next") or request.GET.get("next")
                 if next_url:
@@ -1221,9 +1441,366 @@ def delete_field_crop(request, pk):
     return redirect(next_url)
 
 
+@login_required
+def chat_view(request, thread_id=None):
+    contacts = get_available_contacts(request.user)
+    active_thread = None
+    thread_messages = []
+    ai_messages = request.session.get("ai_chat_messages", [])
+
+    if request.method == "POST":
+        if request.POST.get("ai_chat") == "1":
+            prompt = request.POST.get("text", "").strip()
+            if prompt:
+                owner = get_active_owner_for_user(request.user, request) or request.user
+                ai_messages.append({"sender": request.user.username, "text": prompt})
+                ai_messages.append({"sender": "AI-ассистент", "text": build_ai_chat_reply(owner, prompt)})
+                request.session["ai_chat_messages"] = ai_messages[-20:]
+                request.session.modified = True
+                return redirect(f"{reverse('chat')}?ai=1")
+            messages.error(request, "Сообщение для AI-чата пустое.")
+            return redirect(f"{reverse('chat')}?ai=1")
+
+        text = request.POST.get("text", "")
+        recipient_id = request.POST.get("recipient")
+        context_type = request.POST.get("context_type") or None
+        context_id = request.POST.get("context_id") or None
+        try:
+            if thread_id:
+                thread = get_object_or_404(ChatThread, pk=thread_id, participants=request.user)
+                send_message(request.user, thread=thread, text=text, context_type=context_type, context_id=context_id)
+            else:
+                recipient = get_object_or_404(contacts, pk=recipient_id)
+                owner = request.user if request.user.role == "owner" else (
+                    recipient if recipient.role == "owner" else request.user.owner
+                )
+                if request.user.role == "agronomist":
+                    owner = recipient if recipient.role == "owner" else recipient.owner
+                thread = get_or_create_thread(request.user, recipient, owner)
+                send_message(request.user, thread=thread, text=text, context_type=context_type, context_id=context_id)
+            return redirect("chat-thread", thread.pk)
+        except Exception as exc:
+            messages.error(request, str(exc))
+
+    if thread_id:
+        active_thread, thread_messages = get_messages(request.user, thread_id)
+
+    return render(request, "core/chat.html", {
+        "threads": list_threads(request.user),
+        "contacts": contacts,
+        "active_thread": active_thread,
+        "thread_messages": thread_messages,
+        "ai_messages": ai_messages,
+        "show_ai_chat": request.GET.get("ai") == "1",
+    })
+
+
+@login_required
+@require_POST
+def delete_chat_thread(request, thread_id):
+    thread = get_object_or_404(ChatThread, pk=thread_id, participants=request.user)
+    thread.delete()
+    messages.success(request, "Диалог удален.")
+    return redirect("chat")
+
+
+@login_required
+@require_POST
+def delete_chat_message(request, message_id):
+    message = get_object_or_404(
+        Message.objects.select_related("thread"),
+        pk=message_id,
+        thread__participants=request.user,
+    )
+    thread_id = message.thread_id
+    if message.sender_id != request.user.id and request.user.role != "admin":
+        return HttpResponseForbidden("Вы можете удалять только свои сообщения.")
+    message.delete()
+    messages.success(request, "Сообщение удалено.")
+    return redirect("chat-thread", thread_id)
+
+
+@login_required
+def inventory_view(request):
+    owner = get_active_owner_for_user(request.user, request)
+    if request.user.role not in ["owner", "admin"] or not owner:
+        return HttpResponseForbidden("Inventory is available to owners only")
+
+    purchase_form = PurchaseForm(owner=owner)
+    adjust_form = StockAdjustForm()
+
+    if request.method == "POST":
+        action = request.POST.get("action")
+        if action == "purchase":
+            purchase_form = PurchaseForm(request.POST, owner=owner)
+            if purchase_form.is_valid():
+                supplier_obj = purchase_form.cleaned_data.get("supplier_choice")
+                supplier_name = (purchase_form.cleaned_data.get("supplier_new") or "").strip()
+                if supplier_name:
+                    supplier_obj, _ = Supplier.objects.get_or_create(owner=owner, name=supplier_name)
+                resource = purchase_form.cleaned_data["resource"]
+                price_per_unit = purchase_form.cleaned_data.get("price_per_unit")
+                if price_per_unit in (None, ""):
+                    from core.services.inventory import resolve_resource_price
+
+                    price_per_unit = resolve_resource_price(owner, resource.pk)
+                create_purchase_record(
+                    owner=owner,
+                    resource=resource,
+                    quantity=purchase_form.cleaned_data["quantity"],
+                    price_per_unit=price_per_unit,
+                    supplier=supplier_obj.name if supplier_obj else "",
+                )
+                messages.success(request, "Закупка добавлена, склад обновлен.")
+                return redirect("inventory")
+        elif action == "adjust":
+            adjust_form = StockAdjustForm(request.POST)
+            if adjust_form.is_valid():
+                manual_adjust_stock(
+                    owner=owner,
+                    resource=adjust_form.cleaned_data["resource"],
+                    new_quantity=adjust_form.cleaned_data["quantity_current"],
+                )
+                messages.success(request, "Остаток скорректирован.")
+                return redirect("inventory")
+
+    return render(request, "core/inventory.html", {
+        "stock_items": Stock.objects.filter(owner=owner).select_related("resource").order_by("resource__name"),
+        "purchases": owner.purchases.select_related("resource").order_by("-created_at")[:80],
+        "logs": StockLog.objects.filter(owner=owner).select_related("resource").order_by("-created_at")[:120],
+        "purchase_form": purchase_form,
+        "adjust_form": adjust_form,
+    })
+
+
+@login_required
+def recommendations_view(request):
+    if request.user.role == "agronomist":
+        owner = get_active_owner_for_user(request.user, request)
+        if not owner:
+            return HttpResponseForbidden("No owner scope")
+        selected_owner = owner
+        if request.method == "POST" and request.POST.get("owner"):
+            selected_owner = get_object_or_404(
+                User,
+                pk=request.POST.get("owner"),
+                agronomist_links__agronomist=request.user,
+            )
+        form = RecommendationForm(request.POST or None, user=request.user, owner=selected_owner)
+        if request.method == "POST" and form.is_valid():
+            target_type, target_id = form.cleaned_data["target"].split(":", 1)
+            Recommendation.objects.create(
+                owner=form.cleaned_data.get("owner") or selected_owner,
+                agronomist=request.user,
+                target_type=target_type,
+                target_id=target_id,
+                text=form.cleaned_data["text"],
+            )
+            messages.success(request, "Рекомендация отправлена владельцу.")
+            return redirect("recommendations")
+        qs = Recommendation.objects.filter(agronomist=request.user).select_related("owner")
+    elif request.user.role in ["owner", "admin"]:
+        form = None
+        qs = Recommendation.objects.filter(owner=request.user).select_related("agronomist")
+    else:
+        return HttpResponseForbidden("Recommendations are not available")
+
+    status_filter = request.GET.get("status", "")
+    target_filter = request.GET.get("target_type", "")
+    agronomist_filter = request.GET.get("agronomist", "")
+    owner_filter = request.GET.get("owner", "")
+    field_filter = request.GET.get("field", "")
+    if status_filter:
+        qs = qs.filter(status=status_filter)
+    if target_filter:
+        qs = qs.filter(target_type=target_filter)
+    if agronomist_filter:
+        qs = qs.filter(agronomist_id=agronomist_filter)
+    if owner_filter and request.user.role == "agronomist":
+        qs = qs.filter(owner_id=owner_filter)
+    if field_filter:
+        field_operation_ids = Operation.objects.filter(
+            field_crop__field_id=field_filter
+        ).values_list("id", flat=True)
+        field_crop_ids = FieldCrop.objects.filter(
+            field_id=field_filter
+        ).values_list("id", flat=True)
+        qs = qs.filter(
+            Q(target_type="field", target_id=field_filter)
+            | Q(target_type="operation", target_id__in=field_operation_ids)
+            | Q(target_type="crop", target_id__in=field_crop_ids)
+        )
+
+    if request.user.role == "agronomist":
+        field_owner_ids = Recommendation.objects.filter(agronomist=request.user).values_list("owner_id", flat=True)
+        fields_for_filter = Field.objects.filter(owner_id__in=field_owner_ids).order_by("name")
+    else:
+        fields_for_filter = Field.objects.filter(owner=request.user).order_by("name")
+
+    target_types = qs.order_by("target_type").values_list("target_type", flat=True).distinct()
+    recommendations = attach_recommendation_target_labels(qs.order_by("-created_at"))
+
+    return render(request, "core/recommendations.html", {
+        "form": form,
+        "recommendations": recommendations,
+        "status_filter": status_filter,
+        "target_filter": target_filter,
+        "agronomist_filter": agronomist_filter,
+        "owner_filter": owner_filter,
+        "field_filter": field_filter,
+        "fields": fields_for_filter,
+        "target_types": target_types,
+        "agronomists": User.objects.filter(
+            id__in=Recommendation.objects.filter(owner=request.user).values_list("agronomist_id", flat=True)
+        ).order_by("username") if request.user.role in ["owner", "admin"] else User.objects.none(),
+        "owners": User.objects.filter(
+            id__in=Recommendation.objects.filter(agronomist=request.user).values_list("owner_id", flat=True)
+        ).order_by("username") if request.user.role == "agronomist" else User.objects.none(),
+    })
+
+
+@login_required
+@require_POST
+def review_recommendation(request, pk, status):
+    if request.user.role != "owner" or status not in {"accepted", "rejected"}:
+        return JsonResponse({"success": False}, status=403)
+    rec = get_object_or_404(Recommendation, pk=pk, owner=request.user)
+    rec.status = status
+    rec.save(update_fields=["status", "updated_at"])
+    messages.success(request, "Рекомендация обновлена.")
+    return redirect("recommendations")
+
+
+@login_required
+def fields_map_view(request):
+    if request.user.role == "agronomist":
+        owner_ids = AgronomistAssignment.objects.filter(agronomist=request.user).values_list("owner_id", flat=True)
+        fields = Field.objects.filter(owner_id__in=owner_ids).prefetch_related("analyses")
+    else:
+        fields = Field.objects.filter(owner=request.user).prefetch_related("analyses")
+    map_fields = [
+        {
+            "id": field.pk,
+            "name": field.name,
+            "lat": float(field.latitude) if field.latitude is not None else None,
+            "lon": float(field.longitude) if field.longitude is not None else None,
+            "area": float(field.area) if field.area is not None else None,
+            "location": field.location,
+            "polygon": field.polygon,
+            "analyses": [
+                {
+                    "ndvi": float(analysis.ndvi) if analysis.ndvi is not None else None,
+                    "image": analysis.image.url if analysis.image else "",
+                    "created_at": analysis.created_at.strftime("%Y-%m-%d %H:%M"),
+                }
+                for analysis in field.analyses.all()[:5]
+            ],
+            "url": reverse("field-detail", args=[field.pk]),
+        }
+        for field in fields
+    ]
+    return render(request, "core/fields_map.html", {"fields": fields, "map_fields": map_fields})
+
+
+@login_required
+def _old_devices_view(request):
+    owner = get_active_owner_for_user(request.user, request)
+    if request.user.role not in ["owner", "admin"] or not owner:
+        return HttpResponseForbidden("Devices are available to owners only")
+    form = DeviceForm(request.POST or None, owner=owner)
+    if request.method == "POST" and form.is_valid():
+        device = form.save(commit=False)
+        device.owner = owner
+        device.save()
+        messages.success(request, "Устройство добавлено.")
+        return redirect("devices")
+    return render(request, "core/devices.html", {"form": form, "devices": Device.objects.filter(owner=owner).select_related("field")})
+
+
+@login_required
+@require_POST
+def _old_add_device_data(request, pk):
+    device = get_object_or_404(Device, pk=pk, owner=request.user)
+    form = DeviceDataForm(request.POST)
+    if form.is_valid():
+        point = form.save(commit=False)
+        point.device = device
+        point.save()
+        messages.success(request, "Ручное значение добавлено.")
+    return redirect("devices")
+
+
 # ─────────────────────────────────────────────
 # FIELDS — entry point
 # ─────────────────────────────────────────────
+
+@login_required
+def devices_view(request):
+    owner = get_active_owner_for_user(request.user, request)
+    if request.user.role not in ["owner", "admin", "worker"] or not owner:
+        return HttpResponseForbidden("Devices are not available")
+
+    can_manage_devices = request.user.role in ["owner", "admin"]
+    form = DeviceForm(request.POST or None, owner=owner) if can_manage_devices else None
+    if can_manage_devices and request.method == "POST" and form.is_valid():
+        device = form.save(commit=False)
+        device.owner = owner
+        device.save()
+        messages.success(request, "Устройство добавлено.")
+        return redirect("devices")
+
+    devices = Device.objects.filter(owner=owner).select_related("field").prefetch_related("data_points")
+    field_id = request.GET.get("field")
+    device_type = request.GET.get("type")
+    status = request.GET.get("status")
+    if field_id:
+        devices = devices.filter(field_id=field_id)
+    if device_type:
+        devices = devices.filter(type=device_type)
+    if status:
+        devices = devices.filter(status=status)
+
+    all_devices = Device.objects.filter(owner=owner).select_related("field")
+    return render(request, "core/devices.html", {
+        "form": form,
+        "devices": devices,
+        "fields": Field.objects.filter(owner=owner).order_by("name"),
+        "device_types": all_devices.order_by("type").values_list("type", flat=True).distinct(),
+        "status_choices": DeviceForm.STATUS_CHOICES,
+        "selected_field": field_id or "",
+        "selected_type": device_type or "",
+        "selected_status": status or "",
+        "can_manage_devices": can_manage_devices,
+    })
+
+
+@login_required
+@require_POST
+def add_device_data(request, pk):
+    owner = get_active_owner_for_user(request.user, request)
+    device = get_object_or_404(Device, pk=pk, owner=owner)
+    if request.user.role == "worker" and device.status != "manual":
+        return HttpResponseForbidden("Workers can add values only for manual devices")
+    form = DeviceDataForm(request.POST)
+    if form.is_valid():
+        point = form.save(commit=False)
+        point.device = device
+        point.save()
+        messages.success(request, "Ручное значение добавлено.")
+    return redirect("devices")
+
+
+@login_required
+@require_POST
+def delete_device(request, pk):
+    if request.user.role not in ["owner", "admin"]:
+        return HttpResponseForbidden("You are not allowed to delete devices")
+    owner = get_active_owner_for_user(request.user, request)
+    device = get_object_or_404(Device, pk=pk, owner=owner)
+    device.delete()
+    messages.success(request, "Датчик удален.")
+    return redirect("devices")
+
 
 @login_required
 def field_list_view(request):
@@ -1345,4 +1922,7 @@ def field_detail_view(request, pk):
         "can_manage_operations": can_manage_operations_for_owner(request.user, field.owner),
         "can_manage_seasons": can_manage_seasons_for_owner(request.user, field.owner),
         "can_manage_field_crops": can_manage_field_crops_for_owner(request.user, field.owner),
+        "weather": get_field_weather(field),
+        "devices": Device.objects.filter(owner=field.owner, field=field).prefetch_related("data_points"),
+        "analyses": FieldAnalysis.objects.filter(field=field)[:5],
     })

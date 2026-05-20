@@ -76,6 +76,7 @@
         border-radius: 1.15rem;
         background: var(--bs-body-bg);
         box-shadow: var(--bs-box-shadow-sm);
+        overflow: hidden;
     }
 
     .dashboard-stat {
@@ -201,10 +202,6 @@
         justify-content: center;
         color: var(--bs-secondary-color);
         text-align: center;
-    }
-
-    .dashboard-table-card {
-        overflow: hidden;
     }
 
     .dashboard-table-card .card-header {
@@ -491,6 +488,77 @@
                     </div>
                 </div>
             </div>
+        </div>
+    </section>
+    {% endif %}
+
+    {% if is_owner %}
+    <section>
+        <div class="row g-3">
+            <div class="col-lg-4">
+                <div class="dashboard-panel h-100">
+                    <div class="card-body">
+                        <p class="dashboard-panel-title mb-1">Расход воды</p>
+                        <div class="dashboard-stat-value">{{ water_usage|default:"0" }}</div>
+                        <p class="dashboard-panel-note mb-0">Количество водных ресурсов за выбранный период.</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-4">
+                <div class="dashboard-panel h-100">
+                    <div class="card-body">
+                        <p class="dashboard-panel-title mb-1">Погода</p>
+                        {% if weather %}
+                        <div class="h4 mb-1">{{ weather.temp }} C</div>
+                        <p class="dashboard-panel-note mb-2">{{ weather.suggestion }}</p>
+                        {% for day in weather.days|slice:":3" %}
+                        <div class="small d-flex justify-content-between border-top py-1">
+                            <span>{{ day.date }}</span>
+                            <span>{{ day.temp }} C · {{ day.precipitation }} мм</span>
+                        </div>
+                        {% endfor %}
+                        {% else %}
+                        <p class="dashboard-panel-note mb-0">Добавьте поле, чтобы показать прогноз.</p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-4">
+                <div class="dashboard-panel h-100">
+                    <div class="card-body">
+                        <p class="dashboard-panel-title mb-1">ИИ-проверки</p>
+                        {% for alert in ai_alerts %}
+                        <div class="small border-bottom py-1">{{ alert }}</div>
+                        {% empty %}
+                        <p class="dashboard-panel-note mb-0">Правила не нашли предупреждений.</p>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="dashboard-table-card">
+        <div class="card-header pt-3 pb-2 px-4">
+            <h2 class="h5 mb-1">Последние операции</h2>
+            <p class="text-muted small mb-0">Свежие работы в рамках текущего владельца.</p>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead><tr><th>Дата</th><th>Тип</th><th>Поле</th><th>Статус</th></tr></thead>
+                <tbody>
+                    {% for op in recent_operations %}
+                    <tr>
+                        <td>{{ op.date }}</td>
+                        <td>{{ op.type.name }}</td>
+                        <td>{{ op.field_crop.field.name }}</td>
+                        <td>{{ op.status|human_status }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="4" class="text-center text-muted py-4">Операций пока нет.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
         </div>
     </section>
     {% endif %}

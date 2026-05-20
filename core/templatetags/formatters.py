@@ -64,3 +64,29 @@ def money_short_usd(value):
 
     except:
         return value
+
+
+@register.filter
+def human_status(value):
+    labels = {
+        "active": "Активен",
+        "manual": "Ручной ввод",
+        "maintenance": "На обслуживании",
+        "offline": "Отключен",
+        "purchase": "Закупка",
+        "operation": "Операция",
+        "other": "Другое",
+        "planned": "Запланировано",
+        "done": "Выполнено",
+        "pending": "Ожидает",
+        "accepted": "Принято",
+        "rejected": "Отклонено",
+        "owner": "Владелец",
+        "worker": "Работник",
+        "admin": "Администратор",
+        "agronomist": "Агроном",
+        "field": "Поле",
+        "crop": "Культура",
+        "operation": "Операция",
+    }
+    return labels.get(str(value), value)

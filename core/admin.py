@@ -2,7 +2,24 @@ from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
 from .models import (
     User, Field, Crop, Season,
-    FieldCrop, Operation, OperationType, Resource, OperationResource, AgronomistAssignment, ResourcePrice
+    ChatThread,
+    Device,
+    DeviceData,
+    FieldAnalysis,
+    FieldCrop,
+    Message,
+    Operation,
+    OperationType,
+    OwnerAIConfig,
+    Purchase,
+    Recommendation,
+    Resource,
+    OperationResource,
+    AgronomistAssignment,
+    ResourcePrice,
+    Stock,
+    StockLog,
+    Supplier,
 )
 
 # =====================
@@ -122,6 +139,19 @@ class AgronomistAssignmentAdmin(admin.ModelAdmin):
 
 @admin.register(ResourcePrice)
 class ResourcePriceAdmin(admin.ModelAdmin):
-    list_display = ("owner", "resource", "price", "updated_at")
+    list_display = ("owner", "resource", "price", "supplier", "updated_at")
     list_filter = ("owner", "resource__type")
     search_fields = ("resource__name",)
+
+
+admin.site.register(Purchase)
+admin.site.register(Stock)
+admin.site.register(StockLog)
+admin.site.register(Supplier)
+admin.site.register(ChatThread)
+admin.site.register(Message)
+admin.site.register(Recommendation)
+admin.site.register(Device)
+admin.site.register(DeviceData)
+admin.site.register(OwnerAIConfig)
+admin.site.register(FieldAnalysis)

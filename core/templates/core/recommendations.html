@@ -1,0 +1,120 @@
+{% extends "base.html" %}
+{% load formatters %}
+
+{% block title %}Рекомендации | Agro System{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-start flex-wrap gap-3 mb-4">
+    <div>
+        <h1 class="h3 mb-1">Рекомендации</h1>
+        <p class="text-muted mb-0">Советы агрономов по полям, культурам и операциям.</p>
+    </div>
+</div>
+
+{% if form %}
+<div class="card shadow-sm mb-4">
+    <div class="card-body">
+        <h2 class="h5">Создать рекомендацию</h2>
+        <form method="post" class="d-grid gap-2">
+            {% csrf_token %}
+            {{ form }}
+            <button class="btn btn-primary mt-2">Отправить владельцу</button>
+        </form>
+    </div>
+</div>
+{% endif %}
+
+<form method="get" class="card shadow-sm mb-3">
+    <div class="card-body">
+        <div class="row g-2 align-items-end">
+            <div class="col-md-3">
+                <label class="form-label">Статус</label>
+                <select name="status" class="form-select">
+                    <option value="">Все</option>
+                    <option value="pending" {% if status_filter == "pending" %}selected{% endif %}>Ожидает</option>
+                    <option value="accepted" {% if status_filter == "accepted" %}selected{% endif %}>Принято</option>
+                    <option value="rejected" {% if status_filter == "rejected" %}selected{% endif %}>Отклонено</option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">Объект</label>
+                <select name="target_type" class="form-select">
+                    <option value="">Все</option>
+                    {% for type in target_types %}
+                    <option value="{{ type }}" {% if target_filter == type %}selected{% endif %}>{{ type|human_status }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">Поле</label>
+                <select name="field" class="form-select">
+                    <option value="">Все поля</option>
+                    {% for field in fields %}
+                    <option value="{{ field.pk }}" {% if field_filter == field.pk|stringformat:"s" %}selected{% endif %}>{{ field.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            {% if agronomists %}
+            <div class="col-md-3">
+                <label class="form-label">Агроном</label>
+                <select name="agronomist" class="form-select">
+                    <option value="">Все</option>
+                    {% for agronomist in agronomists %}
+                    <option value="{{ agronomist.pk }}" {% if agronomist_filter == agronomist.pk|stringformat:"s" %}selected{% endif %}>{{ agronomist.username }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            {% endif %}
+            {% if owners %}
+            <div class="col-md-3">
+                <label class="form-label">Владелец</label>
+                <select name="owner" class="form-select">
+                    <option value="">Все</option>
+                    {% for owner in owners %}
+                    <option value="{{ owner.pk }}" {% if owner_filter == owner.pk|stringformat:"s" %}selected{% endif %}>{{ owner.username }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            {% endif %}
+            <div class="col-md-2 d-grid">
+                <button class="btn btn-outline-primary">Фильтр</button>
+            </div>
+        </div>
+    </div>
+</form>
+
+<div class="card shadow-sm">
+    <div class="list-group list-group-flush">
+        {% for rec in recommendations %}
+        <div class="list-group-item">
+            <div class="d-flex justify-content-between align-items-start gap-3">
+                <div>
+                    <div class="fw-semibold">{{ rec.target_label }}</div>
+                    <div class="text-muted small">
+                        {{ rec.created_at }} · {{ rec.agronomist.username }}{% if rec.owner %} → {{ rec.owner.username }}{% endif %}
+                    </div>
+                </div>
+                <span class="badge {% if rec.status == 'accepted' %}bg-success{% elif rec.status == 'rejected' %}bg-danger{% else %}bg-secondary{% endif %}">
+                    {{ rec.status|human_status }}
+                </span>
+            </div>
+            <p class="mb-2 mt-2">{{ rec.text }}</p>
+            {% if request.user.role == "owner" and rec.status == "pending" %}
+            <div class="d-flex gap-2">
+                <form method="post" action="{% url 'review-recommendation' rec.pk 'accepted' %}">
+                    {% csrf_token %}
+                    <button class="btn btn-sm btn-success">Принять</button>
+                </form>
+                <form method="post" action="{% url 'review-recommendation' rec.pk 'rejected' %}">
+                    {% csrf_token %}
+                    <button class="btn btn-sm btn-outline-danger">Отклонить</button>
+                </form>
+            </div>
+            {% endif %}
+        </div>
+        {% empty %}
+        <div class="list-group-item text-center text-muted py-4">Рекомендаций пока нет.</div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}

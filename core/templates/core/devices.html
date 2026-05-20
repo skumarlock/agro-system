@@ -1,0 +1,110 @@
+{% extends "base.html" %}
+{% load formatters %}
+
+{% block title %}Датчики | Agro System{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-start flex-wrap gap-3 mb-4">
+    <div>
+        <h1 class="h3 mb-1">Датчики</h1>
+        <p class="text-muted mb-0">Показания ручных датчиков можно вносить прямо из списка.</p>
+    </div>
+</div>
+
+<form method="get" class="card shadow-sm mb-3">
+    <div class="card-body">
+        <div class="row g-2 align-items-end">
+            <div class="col-md-4">
+                <label class="form-label">Поле</label>
+                <select name="field" class="form-select">
+                    <option value="">Все поля</option>
+                    {% for field in fields %}
+                    <option value="{{ field.pk }}" {% if selected_field == field.pk|stringformat:"s" %}selected{% endif %}>{{ field.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-4">
+                <label class="form-label">Тип</label>
+                <select name="type" class="form-select">
+                    <option value="">Все типы</option>
+                    {% for type in device_types %}
+                    <option value="{{ type }}" {% if selected_type == type %}selected{% endif %}>{{ type }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">Статус</label>
+                <select name="status" class="form-select">
+                    <option value="">Все статусы</option>
+                    {% for value, label in status_choices %}
+                    <option value="{{ value }}" {% if selected_status == value %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-1 d-grid">
+                <button class="btn btn-outline-primary">OK</button>
+            </div>
+        </div>
+    </div>
+</form>
+
+<div class="row g-3">
+    {% if can_manage_devices %}
+    <div class="col-lg-4">
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <h2 class="h5">Добавить датчик</h2>
+                <form method="post" class="d-grid gap-2">
+                    {% csrf_token %}
+                    {{ form }}
+                    <button class="btn btn-primary mt-2">Сохранить датчик</button>
+                </form>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+    <div class="{% if can_manage_devices %}col-lg-8{% else %}col-12{% endif %}">
+        <div class="card shadow-sm">
+            <div class="card-header bg-body"><strong>Устройства</strong></div>
+            <div class="list-group list-group-flush">
+                {% for device in devices %}
+                <div class="list-group-item">
+                    <div class="d-flex justify-content-between gap-3 flex-wrap">
+                        <div>
+                            <div class="fw-semibold">{{ device.type }}</div>
+                            <div class="text-muted small">{{ device.field.name }} · {{ device.status|human_status }}</div>
+                        </div>
+                        <div class="d-flex gap-2 flex-wrap">
+                            {% if device.status == "manual" or can_manage_devices %}
+                            <form method="post" action="{% url 'add-device-data' device.pk %}" class="d-flex gap-2">
+                                {% csrf_token %}
+                                <input name="value" class="form-control form-control-sm" type="number" step="0.01" placeholder="Значение" required>
+                                <button class="btn btn-sm btn-outline-primary">Добавить</button>
+                            </form>
+                            {% endif %}
+                            {% if can_manage_devices %}
+                            <form method="post" action="{% url 'delete-device' device.pk %}" onsubmit="return confirm('Удалить этот датчик?');">
+                                {% csrf_token %}
+                                <button class="btn btn-sm btn-outline-danger">Удалить</button>
+                            </form>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% with latest=device.data_points.first %}
+                    <div class="small text-muted mt-2">
+                        {% if latest %}
+                        Последнее значение: {{ latest.value }} · {{ latest.created_at }}
+                        {% else %}
+                        Значений пока нет.
+                        {% endif %}
+                    </div>
+                    {% endwith %}
+                </div>
+                {% empty %}
+                <div class="list-group-item text-muted">Датчиков пока нет.</div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

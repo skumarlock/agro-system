@@ -1,6 +1,20 @@
 from django import forms
 from django.db import models
-from core.models import Crop, Field, FieldCrop, Operation, OperationType, Season
+from core.models import (
+    Crop,
+    Device,
+    DeviceData,
+    Field,
+    FieldCrop,
+    Operation,
+    OperationType,
+    Purchase,
+    Recommendation,
+    Resource,
+    Season,
+    Stock,
+    Supplier,
+)
 from django.contrib.auth import get_user_model
 
 User = get_user_model()
@@ -156,3 +170,220 @@ class FieldCropCreateForm(forms.ModelForm):
                 self.add_error("season", "Selected season does not belong to this field owner.")
 
         return cleaned_data
+
+
+class PurchaseForm(forms.ModelForm):
+    supplier_choice = forms.ModelChoiceField(
+        queryset=Supplier.objects.none(),
+        required=False,
+        label="Поставщик",
+        widget=forms.Select(attrs={"class": "form-select"}),
+    )
+    supplier_new = forms.CharField(
+        required=False,
+        label="Новый поставщик",
+        widget=forms.TextInput(attrs={"class": "form-control", "placeholder": "Если поставщика нет в списке"}),
+    )
+
+    class Meta:
+        model = Purchase
+        fields = ["resource", "quantity", "price_per_unit"]
+        labels = {
+            "resource": "Ресурс",
+            "quantity": "Количество",
+            "price_per_unit": "Цена за единицу",
+        }
+        widgets = {
+            "resource": forms.Select(attrs={"class": "form-select"}),
+            "quantity": forms.NumberInput(attrs={"class": "form-control", "step": "0.01", "min": "0.01"}),
+            "price_per_unit": forms.NumberInput(attrs={"class": "form-control", "step": "0.01", "min": "0", "placeholder": "Можно оставить пустым"}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        owner = kwargs.pop("owner", None)
+        super().__init__(*args, **kwargs)
+        self.fields["resource"].queryset = Resource.objects.order_by("name")
+        self.fields["price_per_unit"].required = False
+        if owner:
+            self.fields["supplier_choice"].queryset = Supplier.objects.filter(owner=owner)
+
+
+class StockAdjustForm(forms.Form):
+    resource = forms.ModelChoiceField(
+        label="Ресурс",
+        queryset=Resource.objects.order_by("name"),
+        widget=forms.Select(attrs={"class": "form-select"}),
+    )
+    quantity_current = forms.DecimalField(
+        label="Текущее количество",
+        min_value=0,
+        widget=forms.NumberInput(attrs={"class": "form-control", "step": "0.01", "min": "0"}),
+    )
+
+
+class RecommendationForm(forms.Form):
+    owner = forms.ModelChoiceField(
+        queryset=User.objects.none(),
+        required=False,
+        label="Владелец",
+        widget=forms.Select(attrs={"class": "form-select"}),
+    )
+    target = forms.ChoiceField(
+        label="Объект",
+        choices=[],
+        widget=forms.Select(attrs={"class": "form-select"}),
+    )
+    text = forms.CharField(
+        label="Рекомендация",
+        widget=forms.Textarea(attrs={"class": "form-control", "rows": 3}),
+    )
+
+    def __init__(self, *args, **kwargs):
+        user = kwargs.pop("user", None)
+        owner = kwargs.pop("owner", None)
+        super().__init__(*args, **kwargs)
+        if user and user.role == "agronomist":
+            from core.models import AgronomistAssignment
+
+            self.fields["owner"].queryset = User.objects.filter(
+                id__in=AgronomistAssignment.objects.filter(agronomist=user).values_list("owner_id", flat=True)
+            )
+            self.fields["owner"].required = True
+            if owner:
+                self.fields["owner"].initial = owner.pk
+        else:
+            self.fields.pop("owner")
+
+        if owner:
+            choices = []
+            choices += [(f"field:{f.pk}", f"Поле: {f.name}") for f in Field.objects.filter(owner=owner).order_by("name")]
+            choices += [
+                (f"operation:{op.pk}", f"Операция: {op.type.name} / {op.field_crop.field.name} / {op.date}")
+                for op in Operation.objects.filter(field_crop__field__owner=owner).select_related("type", "field_crop__field").order_by("-date")[:80]
+            ]
+            choices += [
+                (f"crop:{fc.pk}", f"Культура: {fc.crop.name} / {fc.field.name} / {fc.season}")
+                for fc in FieldCrop.objects.filter(field__owner=owner).select_related("crop", "field", "season").order_by("-season__year")[:80]
+            ]
+            self.fields["target"].choices = choices
+
+
+class DeviceForm(forms.ModelForm):
+    TYPE_CHOICES = [
+        ("soil_moisture", "Влажность почвы"),
+        ("temperature", "Температура"),
+        ("rain", "Датчик осадков"),
+        ("water_flow", "Расход воды"),
+        ("custom", "Свой тип"),
+    ]
+    STATUS_CHOICES = [
+        ("active", "Активен"),
+        ("manual", "Ручной ввод"),
+        ("maintenance", "На обслуживании"),
+        ("offline", "Отключен"),
+    ]
+
+    type_preset = forms.ChoiceField(label="Тип", choices=TYPE_CHOICES, widget=forms.Select(attrs={"class": "form-select"}))
+    type_custom = forms.CharField(required=False, label="Свой тип", widget=forms.TextInput(attrs={"class": "form-control"}))
+
+    class Meta:
+        model = Device
+        fields = ["field", "status"]
+        labels = {
+            "field": "Поле",
+            "status": "Статус",
+        }
+        widgets = {
+            "field": forms.Select(attrs={"class": "form-select"}),
+            "status": forms.Select(choices=[
+                ("active", "Активен"),
+                ("manual", "Ручной ввод"),
+                ("maintenance", "На обслуживании"),
+                ("offline", "Отключен"),
+            ], attrs={"class": "form-select"}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        owner = kwargs.pop("owner", None)
+        super().__init__(*args, **kwargs)
+        if owner:
+            self.fields["field"].queryset = Field.objects.filter(owner=owner).order_by("name")
+
+    def save(self, commit=True):
+        device = super().save(commit=False)
+        preset = self.cleaned_data.get("type_preset")
+        device.type = self.cleaned_data.get("type_custom") if preset == "custom" else dict(self.TYPE_CHOICES).get(preset, preset)
+        if commit:
+            device.save()
+        return device
+
+    def clean(self):
+        cleaned = super().clean()
+        if cleaned.get("type_preset") == "custom" and not (cleaned.get("type_custom") or "").strip():
+            self.add_error("type_custom", "Укажите свой тип устройства.")
+        return cleaned
+
+
+class DeviceForm(forms.ModelForm):
+    TYPE_CHOICES = [
+        ("soil_moisture", "Влажность почвы"),
+        ("temperature", "Температура"),
+        ("rain", "Датчик осадков"),
+        ("water_flow", "Расход воды"),
+        ("custom", "Свой тип"),
+    ]
+    STATUS_CHOICES = [
+        ("active", "Активен"),
+        ("manual", "Ручной ввод"),
+        ("maintenance", "На обслуживании"),
+        ("offline", "Отключен"),
+    ]
+
+    type_preset = forms.ChoiceField(label="Тип", choices=TYPE_CHOICES, widget=forms.Select(attrs={"class": "form-select"}))
+    type_custom = forms.CharField(required=False, label="Свой тип", widget=forms.TextInput(attrs={"class": "form-control"}))
+
+    class Meta:
+        model = Device
+        fields = ["field", "status"]
+        labels = {
+            "field": "Поле",
+            "status": "Статус",
+        }
+        widgets = {
+            "field": forms.Select(attrs={"class": "form-select"}),
+            "status": forms.Select(choices=[
+                ("active", "Активен"),
+                ("manual", "Ручной ввод"),
+                ("maintenance", "На обслуживании"),
+                ("offline", "Отключен"),
+            ], attrs={"class": "form-select"}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        owner = kwargs.pop("owner", None)
+        super().__init__(*args, **kwargs)
+        if owner:
+            self.fields["field"].queryset = Field.objects.filter(owner=owner).order_by("name")
+
+    def save(self, commit=True):
+        device = super().save(commit=False)
+        preset = self.cleaned_data.get("type_preset")
+        device.type = self.cleaned_data.get("type_custom") if preset == "custom" else dict(self.TYPE_CHOICES).get(preset, preset)
+        if commit:
+            device.save()
+        return device
+
+    def clean(self):
+        cleaned = super().clean()
+        if cleaned.get("type_preset") == "custom" and not (cleaned.get("type_custom") or "").strip():
+            self.add_error("type_custom", "Укажите свой тип датчика.")
+        return cleaned
+
+
+class DeviceDataForm(forms.ModelForm):
+    class Meta:
+        model = DeviceData
+        fields = ["value"]
+        widgets = {
+            "value": forms.NumberInput(attrs={"class": "form-control", "step": "0.01"}),
+        }

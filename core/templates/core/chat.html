@@ -1,0 +1,127 @@
+{% extends "base.html" %}
+{% load formatters %}
+
+{% block title %}Чат | Agro System{% endblock %}
+
+{% block content %}
+<div class="row g-3">
+    <div class="col-lg-4">
+        <div class="card shadow-sm mb-3">
+            <div class="card-header bg-body d-flex justify-content-between align-items-center">
+                <strong>Диалоги</strong>
+                <a class="btn btn-sm btn-outline-primary" href="{% url 'chat' %}?ai=1">AI</a>
+            </div>
+            <div class="list-group list-group-flush">
+                <a class="list-group-item list-group-item-action {% if show_ai_chat %}active{% endif %}" href="{% url 'chat' %}?ai=1">
+                    AI-ассистент
+                    <div class="small opacity-75">Заготовка для подключения нейросети</div>
+                </a>
+                {% for thread in threads %}
+                <div class="list-group-item {% if active_thread.pk == thread.pk %}active{% endif %}">
+                    <div class="d-flex justify-content-between gap-2">
+                        <a class="text-decoration-none {% if active_thread.pk == thread.pk %}text-white{% endif %}" href="{% url 'chat-thread' thread.pk %}">
+                            {% for participant in thread.participants.all %}
+                                {% if participant.pk != request.user.pk %}{{ participant.username }}{% endif %}
+                            {% endfor %}
+                            <div class="small opacity-75">{{ thread.updated_at }}</div>
+                        </a>
+                        <form method="post" action="{% url 'delete-chat-thread' thread.pk %}" onsubmit="return confirm('Удалить этот диалог?');">
+                            {% csrf_token %}
+                            <button class="btn btn-sm {% if active_thread.pk == thread.pk %}btn-outline-light{% else %}btn-outline-danger{% endif %}" title="Удалить диалог">×</button>
+                        </form>
+                    </div>
+                </div>
+                {% empty %}
+                <div class="list-group-item text-muted">Диалогов пока нет.</div>
+                {% endfor %}
+            </div>
+        </div>
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <h2 class="h6">Новое сообщение</h2>
+                <form method="post" action="{% url 'chat' %}" class="d-grid gap-2">
+                    {% csrf_token %}
+                    <select name="recipient" class="form-select" required>
+                        <option value="">Выберите контакт</option>
+                        {% for contact in contacts %}
+                        <option value="{{ contact.pk }}">{{ contact.username }} ({{ contact.role|human_status }})</option>
+                        {% endfor %}
+                    </select>
+                    <textarea name="text" class="form-control" rows="3" placeholder="Сообщение" required></textarea>
+                    <button class="btn btn-primary">Отправить</button>
+                </form>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-8">
+        {% if show_ai_chat %}
+        <div class="card shadow-sm">
+            <div class="card-header bg-body"><strong>AI-ассистент</strong></div>
+            <div class="card-body" id="chatMessages" style="height: min(62vh, 640px); min-height: 360px; overflow-y: auto;">
+                {% for message in ai_messages %}
+                <div class="mb-3 {% if message.sender == request.user.username %}text-end{% endif %}">
+                    <div class="d-inline-block border rounded-3 px-3 py-2 bg-body-tertiary text-start" style="max-width: 75%;">
+                        <div class="small text-muted mb-1">{{ message.sender }}</div>
+                        <div>{{ message.text|linebreaksbr }}</div>
+                    </div>
+                </div>
+                {% empty %}
+                <div class="text-center text-muted py-5">Напишите вопрос по хозяйству. Сейчас это заготовка: внешний API подключается в сервисе AI.</div>
+                {% endfor %}
+            </div>
+            <div class="card-footer bg-body">
+                <form method="post" action="{% url 'chat' %}" class="d-flex gap-2">
+                    {% csrf_token %}
+                    <input type="hidden" name="ai_chat" value="1">
+                    <input name="text" class="form-control" placeholder="Спросить AI-ассистента" required>
+                    <button class="btn btn-primary">Отправить</button>
+                </form>
+            </div>
+        </div>
+        {% else %}
+        <div class="card shadow-sm">
+            <div class="card-header bg-body"><strong>Сообщения</strong></div>
+            <div class="card-body" id="chatMessages" style="height: min(62vh, 640px); min-height: 360px; overflow-y: auto;">
+                {% for message in thread_messages %}
+                <div class="mb-3 {% if message.sender_id == request.user.id %}text-end{% endif %}">
+                    <div class="d-inline-block border rounded-3 px-3 py-2 bg-body-tertiary text-start" style="max-width: 75%;">
+                        <div class="small text-muted mb-1 d-flex justify-content-between gap-3">
+                            <span>{{ message.sender.username }} · {{ message.created_at }}</span>
+                            {% if message.sender_id == request.user.id or request.user.role == "admin" %}
+                            <form method="post" action="{% url 'delete-chat-message' message.pk %}" onsubmit="return confirm('Удалить сообщение?');">
+                                {% csrf_token %}
+                                <button class="btn btn-sm btn-link text-danger p-0">Удалить</button>
+                            </form>
+                            {% endif %}
+                        </div>
+                        <div>{{ message.text|linebreaksbr }}</div>
+                        {% if message.context_type %}
+                        <div class="small text-muted mt-2">Контекст: {{ message.context_type }} #{{ message.context_id }}</div>
+                        {% endif %}
+                    </div>
+                </div>
+                {% empty %}
+                <div class="text-center text-muted py-5">Откройте диалог или отправьте первое сообщение.</div>
+                {% endfor %}
+            </div>
+            {% if active_thread %}
+            <div class="card-footer bg-body">
+                <form method="post" class="d-flex gap-2">
+                    {% csrf_token %}
+                    <input name="text" class="form-control" placeholder="Напишите сообщение" required>
+                    <button class="btn btn-primary">Отправить</button>
+                </form>
+            </div>
+            {% endif %}
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+const chatMessages = document.getElementById("chatMessages");
+if (chatMessages) chatMessages.scrollTop = chatMessages.scrollHeight;
+</script>
+{% endblock %}

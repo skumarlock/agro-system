@@ -105,6 +105,9 @@ class Field(TimeStampedModel):
     area = models.DecimalField(max_digits=10, decimal_places=2)
     location = models.CharField(max_length=255)
     soil_type = models.CharField(max_length=100, blank=True)
+    latitude = models.DecimalField(max_digits=20, decimal_places=14, null=True, blank=True)
+    longitude = models.DecimalField(max_digits=20, decimal_places=14, null=True, blank=True)
+    polygon = models.JSONField(null=True, blank=True)
     owner = models.ForeignKey(
         User,
         on_delete=models.CASCADE,
@@ -248,8 +251,8 @@ class Operation(TimeStampedModel):
         HARVESTING = "сбор урожая", "Сбор урожая"
 
     class Status(models.TextChoices):
-        PLANNED = "запланировано", "Запланировано"
-        DONE = "выполнено", "Выполнено"
+        PLANNED = "planned", "Planned"
+        DONE = "done", "Done"
 
     field_crop = models.ForeignKey(
         FieldCrop,
@@ -323,6 +326,7 @@ class ResourcePrice(TimeStampedModel):
         related_name="prices",
     )
     price = models.DecimalField(max_digits=12, decimal_places=2)
+    supplier = models.CharField(max_length=255, blank=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
@@ -353,15 +357,11 @@ class OperationResource(TimeStampedModel):
 
     def save(self, *args, **kwargs):
         if self.price_per_unit is None and self.resource_id:
-            # Try owner-specific price first
             try:
                 owner = self.operation.field_crop.field.owner
-                rp = ResourcePrice.objects.filter(
-                    owner=owner, resource_id=self.resource_id
-                ).first()
-                self.price_per_unit = rp.price if rp else Resource.objects.get(
-                    pk=self.resource_id
-                ).cost_per_unit
+                from core.services.inventory import resolve_resource_price
+
+                self.price_per_unit = resolve_resource_price(owner, self.resource_id)
             except Exception:
                 self.price_per_unit = Resource.objects.get(
                     pk=self.resource_id
@@ -391,6 +391,7 @@ class AgronomistAssignment(models.Model):
     can_manage_operations = models.BooleanField(default=False)
     can_manage_seasons = models.BooleanField(default=False)
     can_manage_field_crops = models.BooleanField(default=False)
+    recommendation_mode = models.BooleanField(default=True)
 
     def clean(self):
         if self.owner.role != "owner":
@@ -406,3 +407,150 @@ class ExchangeRate(models.Model):
     currency = models.CharField(max_length=10)
     rate = models.DecimalField(max_digits=10, decimal_places=2)
     updated_at = models.DateTimeField(auto_now=True)
+
+
+class Purchase(TimeStampedModel):
+    owner = models.ForeignKey(User, on_delete=models.CASCADE, related_name="purchases")
+    resource = models.ForeignKey(Resource, on_delete=models.PROTECT, related_name="purchases")
+    quantity = models.DecimalField(max_digits=12, decimal_places=2)
+    price_per_unit = models.DecimalField(max_digits=12, decimal_places=2)
+    supplier = models.CharField(max_length=255, blank=True)
+
+    class Meta:
+        indexes = [
+            models.Index(fields=["owner", "resource"]),
+            models.Index(fields=["created_at"]),
+        ]
+
+    def __str__(self):
+        return f"{self.resource} x {self.quantity}"
+
+
+class Supplier(TimeStampedModel):
+    owner = models.ForeignKey(User, on_delete=models.CASCADE, related_name="suppliers")
+    name = models.CharField(max_length=255)
+
+    class Meta:
+        unique_together = ("owner", "name")
+        ordering = ["name"]
+
+    def __str__(self):
+        return self.name
+
+
+class Stock(TimeStampedModel):
+    owner = models.ForeignKey(User, on_delete=models.CASCADE, related_name="stock_items")
+    resource = models.ForeignKey(Resource, on_delete=models.CASCADE, related_name="stock_items")
+    quantity_current = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+
+    class Meta:
+        unique_together = ("owner", "resource")
+        indexes = [models.Index(fields=["owner", "resource"])]
+
+    def __str__(self):
+        return f"{self.owner} / {self.resource}: {self.quantity_current}"
+
+
+class StockLog(TimeStampedModel):
+    class SourceType(models.TextChoices):
+        PURCHASE = "purchase", "Purchase"
+        OPERATION = "operation", "Operation"
+        MANUAL = "manual", "Manual"
+
+    owner = models.ForeignKey(User, on_delete=models.CASCADE, related_name="stock_logs")
+    resource = models.ForeignKey(Resource, on_delete=models.CASCADE, related_name="stock_logs")
+    delta = models.DecimalField(max_digits=12, decimal_places=2)
+    source_type = models.CharField(max_length=20, choices=SourceType.choices)
+    source_id = models.PositiveIntegerField(null=True, blank=True)
+
+    class Meta:
+        indexes = [
+            models.Index(fields=["owner", "resource"]),
+            models.Index(fields=["source_type", "source_id"]),
+        ]
+
+
+class ChatThread(TimeStampedModel):
+    owner = models.ForeignKey(User, on_delete=models.CASCADE, related_name="owned_chat_threads")
+    participants = models.ManyToManyField(User, related_name="chat_threads")
+
+    class Meta:
+        indexes = [models.Index(fields=["owner", "updated_at"])]
+
+    def __str__(self):
+        return f"Thread #{self.pk} ({self.owner})"
+
+
+class Message(models.Model):
+    class ContextType(models.TextChoices):
+        FIELD = "field", "Field"
+        CROP = "crop", "Crop"
+        OPERATION = "operation", "Operation"
+        TASK = "task", "Task"
+
+    thread = models.ForeignKey(ChatThread, on_delete=models.CASCADE, related_name="messages")
+    sender = models.ForeignKey(User, on_delete=models.CASCADE, related_name="sent_messages")
+    text = models.TextField()
+    context_type = models.CharField(max_length=20, choices=ContextType.choices, null=True, blank=True)
+    context_id = models.PositiveIntegerField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["created_at"]
+        indexes = [models.Index(fields=["thread", "created_at"])]
+
+
+class Recommendation(TimeStampedModel):
+    class Status(models.TextChoices):
+        PENDING = "pending", "Pending"
+        ACCEPTED = "accepted", "Accepted"
+        REJECTED = "rejected", "Rejected"
+
+    owner = models.ForeignKey(User, on_delete=models.CASCADE, related_name="recommendations")
+    agronomist = models.ForeignKey(User, on_delete=models.CASCADE, related_name="created_recommendations")
+    target_type = models.CharField(max_length=40)
+    target_id = models.PositiveIntegerField()
+    text = models.TextField()
+    status = models.CharField(max_length=20, choices=Status.choices, default=Status.PENDING)
+
+    class Meta:
+        indexes = [
+            models.Index(fields=["owner", "status"]),
+            models.Index(fields=["agronomist", "created_at"]),
+        ]
+
+
+class Device(TimeStampedModel):
+    owner = models.ForeignKey(User, on_delete=models.CASCADE, related_name="devices")
+    field = models.ForeignKey(Field, on_delete=models.CASCADE, related_name="devices")
+    type = models.CharField(max_length=100)
+    status = models.CharField(max_length=40, default="manual")
+
+    class Meta:
+        indexes = [models.Index(fields=["owner", "field"])]
+
+
+class DeviceData(models.Model):
+    device = models.ForeignKey(Device, on_delete=models.CASCADE, related_name="data_points")
+    value = models.DecimalField(max_digits=12, decimal_places=2)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+
+class OwnerAIConfig(TimeStampedModel):
+    owner = models.OneToOneField(User, on_delete=models.CASCADE, related_name="ai_config")
+    ai_enabled = models.BooleanField(default=False)
+    token_balance = models.PositiveIntegerField(default=0)
+
+
+class FieldAnalysis(models.Model):
+    field = models.ForeignKey(Field, on_delete=models.CASCADE, related_name="analyses")
+    ndvi = models.DecimalField(max_digits=5, decimal_places=3, null=True, blank=True)
+    image = models.FileField(upload_to="field_analysis/", null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+

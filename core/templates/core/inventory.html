@@ -1,0 +1,95 @@
+{% extends "base.html" %}
+{% load formatters %}
+
+{% block title %}Склад | Agro System{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-start flex-wrap gap-3 mb-4">
+    <div>
+        <h1 class="h3 mb-1">Склад</h1>
+        <p class="text-muted mb-0">Закупки пополняют остатки автоматически, ручные корректировки сохраняются в журнале.</p>
+    </div>
+</div>
+
+<div class="row g-3 mb-4">
+    <div class="col-lg-7">
+        <div class="card shadow-sm">
+            <div class="card-header bg-body"><strong>Текущие остатки</strong></div>
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead><tr><th>Ресурс</th><th>Тип</th><th class="text-end">Количество</th></tr></thead>
+                    <tbody>
+                    {% for item in stock_items %}
+                    <tr>
+                        <td>{{ item.resource.name }}</td>
+                        <td class="text-muted">{{ item.resource.get_type_display }}</td>
+                        <td class="text-end">{{ item.quantity_current }} {{ item.resource.unit }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="3" class="text-center text-muted py-4">Остатков пока нет.</td></tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-5">
+        <div class="card shadow-sm mb-3">
+            <div class="card-body">
+                <h2 class="h5">Добавить закупку</h2>
+                <form method="post" class="d-grid gap-2">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="purchase">
+                    {{ purchase_form }}
+                    <div class="form-text">Если цена пустая, будет взята последняя цена закупки, цена владельца или глобальная цена ресурса.</div>
+                    <button class="btn btn-primary mt-2">Сохранить закупку</button>
+                </form>
+            </div>
+        </div>
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <h2 class="h5">Ручная корректировка</h2>
+                <form method="post" class="d-grid gap-2">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="adjust">
+                    {{ adjust_form }}
+                    <button class="btn btn-outline-primary mt-2">Установить количество</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-3">
+    <div class="col-lg-6">
+        <div class="card shadow-sm">
+            <div class="card-header bg-body"><strong>Последние закупки</strong></div>
+            <div class="list-group list-group-flush scrollable-card-list inventory-scroll-panel">
+                {% for p in purchases %}
+                <div class="list-group-item d-flex justify-content-between gap-3">
+                    <div>{{ p.resource.name }} <span class="text-muted">· {{ p.supplier|default:"без поставщика" }}</span></div>
+                    <div class="text-end">{{ p.quantity }} x {{ p.price_per_unit }}</div>
+                </div>
+                {% empty %}
+                <div class="list-group-item text-muted">Закупок пока нет.</div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-6">
+        <div class="card shadow-sm">
+            <div class="card-header bg-body"><strong>Журнал склада</strong></div>
+            <div class="list-group list-group-flush scrollable-card-list inventory-scroll-panel">
+                {% for log in logs %}
+                <div class="list-group-item d-flex justify-content-between gap-3">
+                    <div>{{ log.resource.name }} <span class="text-muted">{{ log.source_type|human_status }}</span></div>
+                    <div class="{% if log.delta < 0 %}text-danger{% else %}text-success{% endif %}">{{ log.delta }}</div>
+                </div>
+                {% empty %}
+                <div class="list-group-item text-muted">Движений пока нет.</div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

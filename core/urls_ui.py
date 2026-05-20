@@ -28,6 +28,16 @@ from core.views_ui import (
     delete_field_crop,
     edit_season,
     delete_season,
+    chat_view,
+    delete_chat_message,
+    delete_chat_thread,
+    inventory_view,
+    recommendations_view,
+    review_recommendation,
+    fields_map_view,
+    devices_view,
+    add_device_data,
+    delete_device,
 )
 
 urlpatterns = [
@@ -39,6 +49,7 @@ urlpatterns = [
 
     # Fields — new primary entry point
     path("fields/", field_list_view, name="fields-list"),
+    path("fields/map/", fields_map_view, name="fields-map"),
     path("fields/<int:pk>/", field_detail_view, name="field-detail"),
 
     # Field crops (legacy / detailed reports)
@@ -60,6 +71,18 @@ urlpatterns = [
     path("operations/<int:pk>/edit/", edit_operation, name="edit-operation"),
     path("operations/<int:pk>/delete/", delete_operation, name="delete-operation"),
     path("operations/create/", create_operation, name="create-operation"),
+
+    # Collaboration / stock / planning
+    path("chat/", chat_view, name="chat"),
+    path("chat/<int:thread_id>/", chat_view, name="chat-thread"),
+    path("chat/<int:thread_id>/delete/", delete_chat_thread, name="delete-chat-thread"),
+    path("chat/messages/<int:message_id>/delete/", delete_chat_message, name="delete-chat-message"),
+    path("inventory/", inventory_view, name="inventory"),
+    path("recommendations/", recommendations_view, name="recommendations"),
+    path("recommendations/<int:pk>/<slug:status>/", review_recommendation, name="review-recommendation"),
+    path("devices/", devices_view, name="devices"),
+    path("devices/<int:pk>/data/", add_device_data, name="add-device-data"),
+    path("devices/<int:pk>/delete/", delete_device, name="delete-device"),
 
     # Workers / team
     path("workers/create/", create_worker, name="create-worker"),

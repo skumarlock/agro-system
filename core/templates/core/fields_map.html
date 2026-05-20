@@ -1,0 +1,167 @@
+{% extends "base.html" %}
+
+{% block title %}Карта полей | Agro System{% endblock %}
+
+{% block content %}
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<style>
+    #fieldsMap {
+        min-height: 560px;
+        border: 1px solid var(--bs-border-color);
+        border-radius: .5rem;
+        overflow: hidden;
+    }
+    .analysis-thumb {
+        width: 112px;
+        height: 72px;
+        object-fit: cover;
+        border-radius: .375rem;
+        border: 1px solid var(--bs-border-color);
+    }
+</style>
+
+<div class="d-flex justify-content-between align-items-start flex-wrap gap-3 mb-3">
+    <div>
+        <h1 class="h3 mb-1">Карта полей</h1>
+        <p class="text-muted mb-0">Поля показываются по координатам. Полигоны можно включать и выключать; снимки из анализа поля доступны в карточках ниже.</p>
+    </div>
+    <div class="form-check form-switch">
+        <input class="form-check-input" type="checkbox" role="switch" id="togglePolygons" checked>
+        <label class="form-check-label" for="togglePolygons">Показывать полигоны</label>
+    </div>
+</div>
+
+{{ map_fields|json_script:"map-fields-data" }}
+<div id="fieldsMap" class="mb-4"></div>
+
+<div class="card shadow-sm">
+    <div class="list-group list-group-flush">
+        {% for field in fields %}
+        <a class="list-group-item list-group-item-action" href="{% url 'field-detail' field.pk %}">
+            <div class="d-flex justify-content-between gap-3 flex-wrap">
+                <div>
+                    <div class="fw-semibold">{{ field.name }}</div>
+                    <div class="text-muted small">{{ field.location }} · {{ field.area }} га</div>
+                </div>
+                <span class="text-muted">{{ field.latitude|default:"-" }}, {{ field.longitude|default:"-" }}</span>
+            </div>
+        </a>
+        {% empty %}
+        <div class="list-group-item text-muted">Полей пока нет.</div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+const mapFields = JSON.parse(document.getElementById("map-fields-data").textContent);
+const defaultCenter = [41.3111, 69.2797];
+
+function analysisHtml(field) {
+    if (!field.analyses || !field.analyses.length) {
+        return '<div class="small text-muted mt-2">Снимков анализа пока нет.</div>';
+    }
+    return `
+        <div class="small fw-semibold mt-2 mb-1">Снимки анализа</div>
+        <div class="d-flex flex-wrap gap-2">
+            ${field.analyses.map(item => `
+                <a href="${item.image}" target="_blank" class="text-decoration-none">
+                    ${item.image ? `<img class="analysis-thumb" src="${item.image}" alt="Снимок анализа">` : ""}
+                    <div class="small text-muted">${item.created_at}${item.ndvi !== null ? ` · NDVI ${item.ndvi}` : ""}</div>
+                </a>
+            `).join("")}
+        </div>
+    `;
+}
+
+function popupHtml(field) {
+    return `
+        <div style="min-width: 240px">
+            <div class="fw-semibold">${field.name}</div>
+            <div class="small text-muted">${field.location || ""}</div>
+            <div class="small mt-1">${field.area || "-"} га</div>
+            ${analysisHtml(field)}
+            <a class="btn btn-sm btn-primary mt-2" href="${field.url}">Открыть поле</a>
+        </div>
+    `;
+}
+
+if (window.L) {
+    const map = L.map("fieldsMap");
+    const markers = [];
+    const polygonLayer = L.layerGroup().addTo(map);
+
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+        maxZoom: 20,
+        attribution: "&copy; OpenStreetMap"
+    }).addTo(map);
+
+    mapFields.forEach((field) => {
+        if (field.lat !== null && field.lon !== null) {
+            const marker = L.marker([field.lat, field.lon]).addTo(map).bindPopup(popupHtml(field));
+            markers.push(marker);
+        }
+        if (field.polygon) {
+            try {
+                const geoJson = L.geoJSON(field.polygon, {
+                    style: {
+                        color: "#198754",
+                        weight: 2,
+                        fillColor: "#198754",
+                        fillOpacity: 0.18
+                    }
+                }).bindPopup(popupHtml(field));
+                geoJson.addTo(polygonLayer);
+                markers.push(geoJson);
+            } catch (error) {
+                console.warn("Не удалось отрисовать полигон поля", field.id, error);
+            }
+        }
+    });
+
+    if (markers.length) {
+        const group = L.featureGroup(markers);
+        map.fitBounds(group.getBounds().pad(0.18));
+    } else {
+        map.setView(defaultCenter, 11);
+    }
+
+    document.getElementById("togglePolygons").addEventListener("change", (event) => {
+        if (event.target.checked) {
+            polygonLayer.addTo(map);
+        } else {
+            polygonLayer.remove();
+        }
+    });
+} else {
+    const container = document.getElementById("fieldsMap");
+    const located = mapFields.filter((field) => field.lat !== null && field.lon !== null);
+    container.style.position = "relative";
+    container.style.background = "linear-gradient(90deg, rgba(25,135,84,.08) 1px, transparent 1px), linear-gradient(rgba(25,135,84,.08) 1px, transparent 1px), var(--bs-tertiary-bg)";
+    container.style.backgroundSize = "42px 42px";
+    container.innerHTML = '<div class="position-absolute top-0 start-0 m-3 alert alert-warning py-2">Онлайн-карта не загрузилась, показана локальная схема по координатам.</div>';
+    if (!located.length) {
+        container.innerHTML += '<div class="d-flex h-100 align-items-center justify-content-center text-muted">У полей пока нет координат.</div>';
+    }
+    const minLat = located.length ? Math.min(...located.map((field) => field.lat)) : defaultCenter[0];
+    const maxLat = located.length ? Math.max(...located.map((field) => field.lat)) : defaultCenter[0];
+    const minLon = located.length ? Math.min(...located.map((field) => field.lon)) : defaultCenter[1];
+    const maxLon = located.length ? Math.max(...located.map((field) => field.lon)) : defaultCenter[1];
+    located.forEach((field) => {
+        const x = maxLon === minLon ? 50 : 8 + ((field.lon - minLon) / (maxLon - minLon)) * 84;
+        const y = maxLat === minLat ? 50 : 8 + ((maxLat - field.lat) / (maxLat - minLat)) * 84;
+        const link = document.createElement("a");
+        link.href = field.url;
+        link.className = "btn btn-success btn-sm position-absolute";
+        link.style.left = x + "%";
+        link.style.top = y + "%";
+        link.style.transform = "translate(-50%, -50%)";
+        link.textContent = field.name;
+        container.appendChild(link);
+    });
+    document.getElementById("togglePolygons").disabled = true;
+}
+</script>
+{% endblock %}
