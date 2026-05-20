@@ -95,17 +95,9 @@ def ru_value(value):
 
 
 def is_water_resource_summary(resource):
-    resource_type = str(resource.get("type") or "").strip().lower()
+    """Возвращает True только для ресурса «Техническая вода»."""
     resource_name = str(resource.get("name") or "").strip().lower()
-    return (
-        resource_type == str(Resource.Type.WATER).lower()
-        or "вода" in resource_type
-        or "вод" in resource_type
-        or "water" in resource_type
-        or "вода" in resource_name
-        or "вод" in resource_name
-        or "water" in resource_name
-    )
+    return resource_name == "техническая вода"
 
 
 def attach_recommendation_target_labels(recommendations):
